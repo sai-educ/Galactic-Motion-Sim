@@ -17,6 +17,7 @@ const paths = {
   clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5v5l3 1.5"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   arrow: '<path d="M5 12h13m-5-5 5 5-5 5"/>',
+  pulse: '<path d="M3 12h4l2.5-6 4 12 2.5-6h5"/>',
 } as const
 
 export function icon(name: keyof typeof paths) {

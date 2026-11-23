@@ -1,16 +1,21 @@
 import './style.css'
+import { LY_PER_KPC } from './astro'
 import { createCallout, type Callout } from './callouts'
 import { icon, mountIcons } from './icons'
 import { galacticCoordinates, skyAsset, skyCatalog } from './sky-catalog'
-import { arms } from './spiral-map'
+import { arms, RING_RADII_KPC } from './spiral-map'
 import { systems } from './systems'
-import { createTimeline, formatTime } from './timeline'
+import { createTimeline, formatEpoch, formatLightYears, formatTime } from './timeline'
+import { chapters, TOUR_DURATION } from './tour'
 import { defaultViewSettings, type ViewSettings } from './view-settings'
-import type { createSimulator } from './simulator'
+import type { createSimulator, Telemetry } from './simulator'
 
 function element<T extends HTMLElement = HTMLElement>(id: string) {
   return document.getElementById(id) as T
 }
+
+const OVERVIEW_DESCRIPTION = 'Four star systems share the Sun’s corner of the Galaxy today. Press play and watch them drift apart as each follows its own orbit.'
+const NORTH_DESCRIPTION = 'Seen from above its north pole, the Galaxy turns clockwise. The Sun needs about 220 million years for one lap.'
 
 const list = element('systems-list')
 const annotations = element('annotations')
@@ -30,6 +35,7 @@ const zoomControl = element<HTMLInputElement>('sky-zoom')
 const skyCoordinates = element('sky-coordinates')
 const photoCredit = element<HTMLAnchorElement>('photo-credit')
 const panoramaCredit = element<HTMLAnchorElement>('panorama-credit')
+const dataCard = element('data-card')
 const panelButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-panel]')]
 const panels = {
   systems: { title: 'Explore systems', element: element('panel-systems') },
@@ -41,27 +47,23 @@ const freeMode = element<HTMLButtonElement>('free-mode')
 const tourMode = element<HTMLButtonElement>('tour-mode')
 const tourPanel = element('tour-panel')
 const tourCaption = element('tour-caption')
+const tourNote = element('tour-note')
 const tourStep = element('tour-step')
 const tourProgress = element('tour-progress')
 const playback = element<HTMLButtonElement>('playback')
 const rate = element<HTMLInputElement>('rate')
 const trail = element<HTMLInputElement>('trail')
 const elapsedText = element('elapsed')
+const elapsedEpoch = element('elapsed-epoch')
 const timeMarks = element<HTMLInputElement>('time-marks')
 const timeScrubber = element<HTMLInputElement>('time-scrubber')
 const fullscreen = element<HTMLButtonElement>('fullscreen')
 const aboutDialog = element<HTMLDialogElement>('about-dialog')
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+const narrowLayout = matchMedia('(max-width: 800px)')
+// Below this width the scene is too narrow to share with the data card, so the card joins the sidebar.
+const compactStage = matchMedia('(max-width: 1180px)')
 
-const chapters = [
-  { time: 0, system: -1, title: 'Milky Way overview' },
-  { time: 4, system: 0, title: 'Solar System' },
-  { time: 12, system: 1, title: 'Alpha Centauri' },
-  { time: 19, system: 2, title: 'Sirius' },
-  { time: 25, system: 3, title: 'TRAPPIST-1' },
-  { time: 29, system: -1, title: 'Back to the Milky Way' },
-]
-const tourDuration = 40
 let paused = reducedMotion.matches
 let touring = false
 let tourTime = 0
@@ -75,20 +77,23 @@ let viewSettings: ViewSettings = { ...defaultViewSettings }
 let simulator: ReturnType<typeof createSimulator> | undefined
 
 const cards: HTMLButtonElement[] = []
-const markers: HTMLButtonElement[] = []
+const systemLabels: Callout[] = []
 const bodyLabels: Callout[][] = []
 const timeLabels = Array.from({ length: 4 }, () => createCallout('', 'time'))
 const armLabels = [...arms.map(arm => createCallout(arm.name, 'arm',
-  arm.kind === 'Spur' ? '#9be9df' : arm.kind === 'Inner gas arm' ? '#dfb88e' : '#d5b8f8')),
+  arm.kind === 'Spur' ? '#9be9df' : arm.kind === 'Inner gas arm' ? '#dfb88e' : '#bcd0ff')),
   createCallout('Galactic bar', 'arm', '#f8cfa5')]
+const ringLabels = RING_RADII_KPC.map(kpc => createCallout(
+  `${kpc} kpc · ${formatLightYears(kpc * LY_PER_KPC)}`, 'scale', '#7fc3cf'))
 const skyLabels: Callout[] = []
 const skyCards: HTMLButtonElement[] = []
-const timeline = createTimeline(timeScrubber, element<HTMLOutputElement>('timeline-time'), element('timeline-ticks'), time => {
-  if (!simulator) return
-  stopTour()
-  if (!paused) setPaused(true)
-  simulator.seek(time)
-})
+const timeline = createTimeline(timeScrubber, element<HTMLOutputElement>('timeline-time'), element('timeline-epoch'),
+  element('timeline-ticks'), time => {
+    if (!simulator) return
+    stopTour()
+    if (!paused) setPaused(true)
+    simulator.seek(time)
+  })
 
 for (const [index, system] of systems.entries()) {
   const card = document.createElement('button')
@@ -101,29 +106,26 @@ for (const [index, system] of systems.entries()) {
   card.innerHTML = `
     <span class="system-art" data-system="${system.id}" aria-hidden="true"><i></i><i></i><i></i></span>
     <span class="system-text"><strong>${system.name}</strong><small>${system.kind}</small></span>
+    <kbd class="card-key" aria-hidden="true">${index + 1}</kbd>
     <span class="card-arrow">${icon('arrow')}</span>
   `
   card.addEventListener('click', () => selectManually(index))
   list.append(card)
   cards.push(card)
 
-  const marker = document.createElement('button')
-  marker.type = 'button'
-  marker.className = 'annotation'
-  marker.hidden = true
-  marker.style.setProperty('--system-color', system.color)
-  marker.innerHTML = `<span class="locator" aria-hidden="true"></span><span class="annotation-name">${system.name}</span>`
-  marker.addEventListener('click', () => selectManually(index))
-  annotations.append(marker)
-  markers.push(marker)
+  const label = createCallout(system.name, 'system', system.color)
+  label.element.title = `Follow ${system.name}`
+  label.element.addEventListener('click', () => selectManually(index))
+  annotations.append(label.element)
+  systemLabels.push(label)
 
   bodyLabels.push(system.bodies.map(body => {
-    const label = createCallout(body.name, 'body', body.color)
-    annotations.append(label.element)
-    return label
+    const bodyLabel = createCallout(body.name, 'body', body.color)
+    annotations.append(bodyLabel.element)
+    return bodyLabel
   }))
 }
-for (const label of [...timeLabels, ...armLabels]) annotations.append(label.element)
+for (const label of [...timeLabels, ...armLabels, ...ringLabels]) annotations.append(label.element)
 
 for (const [index, object] of skyCatalog.entries()) {
   const button = document.createElement('button')
@@ -174,8 +176,7 @@ function updateView(index: number, north = false) {
   stage.classList.toggle('is-focused', Boolean(system))
   viewKind.textContent = system?.kind ?? (north ? 'Galactic north · Clockwise' : 'Galaxy overview')
   viewTitle.textContent = system?.name ?? 'Milky Way'
-  viewDescription.textContent = system?.description
-    ?? 'Trace the paths of four star systems as they orbit the galactic center.'
+  viewDescription.textContent = system?.description ?? (north ? NORTH_DESCRIPTION : OVERVIEW_DESCRIPTION)
   bodyKey.hidden = !system || !showLabels
   bodyKey.innerHTML = system?.bodies.map(body =>
     `<span><i style="--body-color:${body.color}"></i>${body.name}</span>`).join('') ?? ''
@@ -186,7 +187,32 @@ function updateView(index: number, north = false) {
   element('sky-zoom-field').hidden = true
   element('timeline').hidden = !stage.classList.contains('is-live')
   for (const card of skyCards) card.setAttribute('aria-pressed', 'false')
+  showData(index)
   updatePresentation()
+}
+
+function showData(index: number) {
+  const system = systems[index]
+  dataCard.hidden = !system || !simulator
+  if (!system) return
+  element('data-name').textContent = system.name
+  element('fact-list').innerHTML = system.facts.map(fact =>
+    `<div><dt>${fact.label}</dt><dd>${fact.value}</dd></div>`).join('')
+  element('live-separation-row').hidden = index === 0
+  for (const id of ['live-radius', 'live-height', 'live-speed', 'live-separation']) element(id).textContent = '–'
+}
+
+function showTelemetry({ radius, height, speed, separation }: Telemetry) {
+  const side = height < 0 ? 'south' : 'north'
+  element('live-radius').textContent = formatLightYears(radius)
+  element('live-height').textContent = `${formatLightYears(Math.abs(height))} ${side}`
+  element('live-speed').textContent = `${speed.toFixed(0)} km/s`
+  element('live-separation').textContent = formatLightYears(separation)
+}
+
+function placeDataCard() {
+  const home = compactStage.matches ? element('data-slot') : stage
+  if (dataCard.parentElement !== home) home.append(dataCard)
 }
 
 function setPanel(panel: Panel) {
@@ -214,6 +240,7 @@ function showSky(index: number) {
   skyCoordinates.textContent = `Galactic longitude ${l.toFixed(2)}° · latitude ${latitude}°`
   skyCoordinates.hidden = false
   bodyKey.hidden = true
+  dataCard.hidden = true
   element('marks-control').hidden = true
   element('timeline').hidden = true
   element('sky-zoom-field').hidden = false
@@ -223,7 +250,7 @@ function showSky(index: number) {
   for (let i = 0; i < skyCards.length; i++) skyCards[i].setAttribute('aria-pressed', String(i === index))
   displaySkyZoom(object.fieldOfView)
   updatePresentation()
-  if (matchMedia('(max-width: 800px)').matches) {
+  if (narrowLayout.matches) {
     stage.scrollIntoView({ block: 'start', behavior: reducedMotion.matches ? 'auto' : 'smooth' })
   }
 }
@@ -241,7 +268,7 @@ function updatePresentation() {
   if (!photoCredit.hidden) {
     const object = skyCatalog[activeSky]
     photoCredit.href = object.source
-    photoCredit.textContent = `Enlarged telescope image · ${object.credit}`
+    photoCredit.textContent = `Telescope image, enlarged · ${object.band} · ${object.credit}`
   }
   element('image-credits').hidden = panoramaCredit.hidden && photoCredit.hidden
 }
@@ -257,6 +284,7 @@ function showChapter(index: number) {
   const next = chapters[index]
   chapter = index
   tourCaption.textContent = next.title
+  tourNote.textContent = next.note
   tourStep.textContent = `${index + 1} / ${chapters.length}`
   if (activeSky >= 0 || active !== next.system || northView.classList.contains('is-current')) showView(next.system)
 }
@@ -269,6 +297,7 @@ function startTour() {
   tourPanel.hidden = false
   freeMode.setAttribute('aria-pressed', 'false')
   tourMode.setAttribute('aria-pressed', 'true')
+  if (paused && !reducedMotion.matches) setPaused(false)
   showChapter(0)
 }
 
@@ -281,17 +310,19 @@ function selectManually(index: number) {
 function displayTime(time: number) {
   wholeSeconds = Math.floor(time)
   elapsedText.textContent = formatTime(time)
+  elapsedEpoch.textContent = formatEpoch(wholeSeconds)
 }
 
 function onFrame(time: number, delta: number) {
   if (Math.floor(time) !== wholeSeconds) displayTime(time)
   timeline.update(time, !paused)
-  if (touring && !aboutDialog.open) {
-    tourTime = (tourTime + delta) % tourDuration
+  // A pause holds the tour too. With reduced motion the scene starts paused, and the tour still steps through its views.
+  if (touring && !aboutDialog.open && (!paused || reducedMotion.matches)) {
+    tourTime = (tourTime + delta) % TOUR_DURATION
     const upcoming = chapters.findIndex(next => next.time > tourTime)
     const index = upcoming < 0 ? chapters.length - 1 : upcoming - 1
     if (index !== chapter) showChapter(index)
-    tourProgress.style.transform = `scaleX(${tourTime / tourDuration})`
+    tourProgress.style.transform = `scaleX(${tourTime / TOUR_DURATION})`
   }
 }
 
@@ -322,6 +353,19 @@ function applyTrail() {
   simulator?.setTrail(value)
 }
 
+function toggleLabels() {
+  showLabels = !showLabels
+  labelsToggle.setAttribute('aria-pressed', String(showLabels))
+  simulator?.setLabels(showLabels)
+  bodyKey.hidden = active < 0 || !showLabels
+}
+
+function showNorth() {
+  if (!simulator) return
+  stopTour()
+  showView(-1, true)
+}
+
 function reset() {
   stopTour()
   rate.value = rate.defaultValue
@@ -343,6 +387,7 @@ function unavailable(message: string) {
   element('timeline').hidden = true
   element('fps-counter').hidden = true
   element('image-credits').hidden = true
+  dataCard.hidden = true
   for (const annotation of annotations.children) (annotation as HTMLElement).hidden = true
   for (const control of document.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>('[data-scene-control]')) {
     control.disabled = true
@@ -381,24 +426,16 @@ zoomControl.addEventListener('input', () => simulator?.setSkyZoom(zoomControl.va
 playback.addEventListener('click', () => setPaused(!paused))
 element('reset').addEventListener('click', reset)
 overview.addEventListener('click', () => selectManually(-1))
-labelsToggle.addEventListener('click', () => {
-  showLabels = !showLabels
-  labelsToggle.setAttribute('aria-pressed', String(showLabels))
-  simulator?.setLabels(showLabels)
-  bodyKey.hidden = active < 0 || !showLabels
-})
+labelsToggle.addEventListener('click', toggleLabels)
 timeMarks.addEventListener('change', () => simulator?.setTimeMarks(timeMarks.checked))
-northView.addEventListener('click', () => {
-  if (!simulator) return
-  stopTour()
-  showView(-1, true)
-})
+northView.addEventListener('click', showNorth)
 freeMode.addEventListener('click', stopTour)
 tourMode.addEventListener('click', startTour)
 element('about').addEventListener('click', () => aboutDialog.showModal())
 aboutDialog.addEventListener('click', (event) => {
   if (event.target === aboutDialog) aboutDialog.close()
 })
+compactStage.addEventListener('change', placeDataCard)
 
 fullscreen.hidden = !document.fullscreenEnabled
 fullscreen.addEventListener('click', async () => {
@@ -417,15 +454,29 @@ document.addEventListener('fullscreenchange', () => {
   fullscreen.setAttribute('aria-label', label)
 })
 
+const shortcuts: Record<string, () => void> = {
+  g: () => selectManually(-1),
+  n: showNorth,
+  l: toggleLabels,
+  t: () => (touring ? stopTour() : startTour()),
+  ...Object.fromEntries(systems.map((_, index) => [String(index + 1), () => selectManually(index)])),
+}
+
 document.addEventListener('keydown', (event) => {
   if (aboutDialog.open || !simulator || event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
-  if (event.target instanceof HTMLElement && event.target.closest('input, button, a, textarea, [contenteditable]')) return
+  const target = event.target instanceof HTMLElement ? event.target : undefined
+  // Typing into a field or picking from a menu keeps every key. Space also keeps its meaning on any control.
+  if (target?.closest('textarea, select, [contenteditable], input:not([type="range"], [type="checkbox"])')) return
   if (event.code === 'Space') {
+    if (target?.closest('button, a, input, summary')) return
     event.preventDefault()
     setPaused(!paused)
-  } else if (event.key.toLowerCase() === 'g') {
-    selectManually(-1)
+    return
   }
+  const action = shortcuts[event.key.toLowerCase()]
+  if (!action) return
+  event.preventDefault()
+  action()
 })
 
 applyRate()
@@ -433,15 +484,20 @@ applyTrail()
 setRange(bloomControl, 'bloom-value', '%')
 setRange(dustControl, 'dust-value', '%')
 setPaused(paused)
+placeDataCard()
+viewDescription.textContent = OVERVIEW_DESCRIPTION
 
 async function initialize() {
   try {
     const { createSimulator } = await import('./simulator')
     simulator = createSimulator({
-      canvas: element<HTMLCanvasElement>('galaxy'), labels: markers, coreLabel: element('core-label'),
-      bodyLabels, timeLabels, armLabels, skyLabels,
+      canvas: element<HTMLCanvasElement>('galaxy'), systemLabels, coreLabel: element('core-label'),
+      bodyLabels, timeLabels, armLabels, ringLabels, skyLabels,
+      obstacles: [element('stage-heading'), element('timeline'), tourPanel, dataCard, element('fps-counter'),
+        element('view-controls'), element('image-credits'), northView],
       onFps: fps => { element('fps-value').textContent = String(fps) },
       onSkyZoom: displaySkyZoom,
+      onTelemetry: showTelemetry,
       onFrame, onTakeover: stopTour,
       onFirstRender() {
         stage.classList.add('is-live')

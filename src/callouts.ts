@@ -5,8 +5,19 @@ export interface Callout {
   caption: HTMLElement
 }
 
-export function createCallout(text: string, kind: 'body' | 'time' | 'arm' | 'sky', color?: string): Callout {
-  const element = document.createElement(kind === 'sky' ? 'button' : 'div')
+export interface Rect {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
+type CalloutKind = 'system' | 'body' | 'time' | 'arm' | 'scale' | 'sky'
+const INTERACTIVE: CalloutKind[] = ['system', 'sky']
+
+export function createCallout(text: string, kind: CalloutKind, color?: string): Callout {
+  const interactive = INTERACTIVE.includes(kind)
+  const element = document.createElement(interactive ? 'button' : 'div')
   element.className = `annotation ${kind}-callout`
   element.hidden = true
   if (element instanceof HTMLButtonElement) element.type = 'button'
@@ -23,18 +34,24 @@ export function createCallout(text: string, kind: 'body' | 'time' | 'arm' | 'sky
   return { element, caption }
 }
 
-const lanes = [0, -23, 23, -46, 46, -69, 69, -92, 92]
-const clearances = [14, 43, 76]
+const LANES = [0, -23, 23, -46, 46, -69, 69, -92, 92]
+const CLEARANCES = [14, 43, 76]
+const TEXT_HEIGHT = 19
+const CHARACTER_WIDTH = 6.6
+const EDGE_MARGIN = 9
 
 export function createCalloutLayout(camera: PerspectiveCamera, capacity: number) {
   const placed = new Float32Array(capacity * 4)
   let count = 0
   let width = 0
   let height = 0
+  let blocked: readonly Rect[] = []
 
-  function begin(viewportWidth: number, viewportHeight: number) {
+  /** Starts a frame. Tags avoid the given rectangles, and points underneath them are not marked. */
+  function begin(viewportWidth: number, viewportHeight: number, obstacles: readonly Rect[] = []) {
     width = viewportWidth
     height = viewportHeight
+    blocked = obstacles
     count = 0
   }
 
@@ -42,44 +59,59 @@ export function createCalloutLayout(camera: PerspectiveCamera, capacity: number)
     for (let i = 0; i < count; i += 4) {
       if (left < placed[i + 2] + 4 && right > placed[i] - 4 && top < placed[i + 3] + 3 && bottom > placed[i + 1] - 3) return true
     }
+    for (const rect of blocked) {
+      if (left < rect.right && right > rect.left && top < rect.bottom && bottom > rect.top) return true
+    }
     return false
   }
 
+  function covered(x: number, y: number) {
+    return blocked.some(rect => x > rect.left && x < rect.right && y > rect.top && y < rect.bottom)
+  }
+
   function reserve(left: number, top: number, right: number, bottom: number) {
+    if (count + 4 > placed.length) return
     placed[count++] = left
     placed[count++] = top
     placed[count++] = right
     placed[count++] = bottom
   }
 
-  function place(tag: Callout, position: Vector3, below = false, bottomMargin = 139) {
-    const { element, caption } = tag
+  /** Projects a world position to viewport pixels, or returns false when it cannot be marked. */
+  function locate(position: Vector3) {
     position.project(camera)
     const x = (position.x + 1) * width * 0.5
     const y = (1 - position.y) * height * 0.5
-    if (position.z <= -1 || position.z >= 1 || x < 6 || x > width - 6 || y < 60 || y > height - 32) {
+    if (position.z <= -1 || position.z >= 1 || x < 6 || x > width - 6 || y < 6 || y > height - 6 || covered(x, y)) return false
+    position.set(x, y, 0)
+    return true
+  }
+
+  function place(tag: Callout, position: Vector3, below = false) {
+    const { element, caption } = tag
+    if (!locate(position)) {
       element.hidden = true
       return
     }
-    const textWidth = (caption.textContent?.length ?? 0) * 6.6 + 15
-    const textHeight = 19
-    const minTop = width < 560 ? 154 : 181
+    const { x, y } = position
+    const textWidth = (caption.textContent?.length ?? 0) * CHARACTER_WIDTH + 15
     const prefer = x >= width / 2 ? 1 : -1
-    const offset = below ? 19 : -textHeight / 2
+    const offset = below ? 19 : -TEXT_HEIGHT / 2
     if (trySide(prefer) || trySide(-prefer)) return
     element.hidden = true
 
     function trySide(side: number) {
-      for (const clearance of clearances) {
+      for (const clearance of CLEARANCES) {
         const left = side > 0 ? x + clearance : x - clearance - textWidth
         const right = left + textWidth
-        if (left < 9 || right > width - 9) continue
-        for (const lane of lanes) {
+        if (left < EDGE_MARGIN || right > width - EDGE_MARGIN) continue
+        for (const lane of LANES) {
           const top = y + offset + lane
-          if (top < minTop || top + textHeight > height - bottomMargin || overlaps(left, top, right, top + textHeight)) continue
-          reserve(left, top, right, top + textHeight)
+          if (top < EDGE_MARGIN || top + TEXT_HEIGHT > height - EDGE_MARGIN) continue
+          if (overlaps(left, top, right, top + TEXT_HEIGHT)) continue
+          reserve(left, top, right, top + TEXT_HEIGHT)
           const dx = side > 0 ? left - x : right - x
-          const dy = top + textHeight / 2 - y
+          const dy = top + TEXT_HEIGHT / 2 - y
           element.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
           element.style.setProperty('--tag-x', `${(left - x).toFixed(1)}px`)
           element.style.setProperty('--tag-y', `${(top - y).toFixed(1)}px`)
@@ -93,5 +125,5 @@ export function createCalloutLayout(camera: PerspectiveCamera, capacity: number)
     }
   }
 
-  return { begin, place, reserve }
+  return { begin, place, locate, reserve }
 }

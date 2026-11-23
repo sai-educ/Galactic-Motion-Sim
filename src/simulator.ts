@@ -7,29 +7,47 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
-import { createCalloutLayout, type Callout } from './callouts'
+import { LY_PER_UNIT, SOLAR_AZIMUTH, UNITS_PER_KPC } from './astro'
+import { createCalloutLayout, type Callout, type Rect } from './callouts'
 import { SimulationClock } from './clock'
 import { createDeepSky } from './deep-sky'
+import { toKms } from './galactic-orbit'
 import { createGalaxy } from './galaxy'
 import { createOrbits } from './orbits'
 import { skyCatalog } from './sky-catalog'
-import { armAnchor, arms, BAR_AZIMUTH, PATTERN_SPEED } from './spiral-map'
-import { sampleBody, sampleSystem, systems } from './systems'
+import { armAnchor, arms, BAR_AZIMUTH, BAR_SPEED, labelSpeed, RING_RADII_KPC } from './spiral-map'
+import { bodyOffset, sampleSystem, systems } from './systems'
 import { formatTime } from './timeline'
 import { createTrailAxis } from './trail-axis'
 import { defaultViewSettings, type ViewSettings } from './view-settings'
 
+/** Live figures for the tracked system, in everyday units. */
+export interface Telemetry {
+  /** Distance from the Galactic Center in light-years. */
+  radius: number
+  /** Height above the Galaxy's mid-plane in light-years. Negative values are south of it. */
+  height: number
+  /** Speed around the Galaxy in km/s. */
+  speed: number
+  /** Distance from the Sun in light-years. */
+  separation: number
+}
+
 interface SimulatorOptions {
   canvas: HTMLCanvasElement
-  labels: HTMLButtonElement[]
+  systemLabels: Callout[]
   coreLabel: HTMLElement
   bodyLabels: Callout[][]
   timeLabels: Callout[]
   armLabels: Callout[]
+  ringLabels: Callout[]
   skyLabels: Callout[]
+  /** Interface panels drawn over the scene. Labels keep clear of them. */
+  obstacles: HTMLElement[]
   onFrame: (time: number, delta: number) => void
   onFps: (fps: number) => void
   onSkyZoom: (degrees: number) => void
+  onTelemetry: (telemetry: Telemetry) => void
   onTakeover: () => void
   onContextLost: () => void
   onFirstRender: () => void
@@ -43,17 +61,27 @@ interface Transition {
   toTarget: Vector3
 }
 
-const overviewPosition = new Vector3(236, 390, 398)
-const overviewTarget = new Vector3(0, -25, 0)
-const northPosition = new Vector3(0, 725, 0.01)
+const OVERVIEW_POSITION = new Vector3(236, 390, 398)
+const OVERVIEW_TARGET = new Vector3(0, -25, 0)
+const NORTH_POSITION = new Vector3(0, 725, 0.01)
+const MODEL_FOV = 46
+const MIN_DISTANCE = 12
+const TRANSITION_SECONDS = 1.55
+// A close-up looks at a point this far behind the system so that its trail fills the frame.
+const TRAIL_LEAD = 6.8
+const TELEMETRY_INTERVAL = 0.2
+const OBSTACLE_INTERVAL = 0.25
+const OBSTACLE_PADDING = 8
+const RING_LABEL_AZIMUTH = SOLAR_AZIMUTH + 2.5
+const BAR_LABEL_RADIUS = 30
 
 export function createSimulator(options: SimulatorOptions) {
-  const { canvas, labels, coreLabel, bodyLabels, timeLabels, armLabels, skyLabels } = options
+  const { canvas, systemLabels, coreLabel, bodyLabels, timeLabels, armLabels, ringLabels, skyLabels } = options
   const viewport = canvas.parentElement!
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
   const scene = new Scene()
-  scene.background = new Color('#080c24')
-  const camera = new PerspectiveCamera(46, 1, 0.6, 6900)
+  scene.background = new Color('#04060f')
+  const camera = new PerspectiveCamera(MODEL_FOV, 1, 0.6, 6900)
   const renderer = new WebGLRenderer({ canvas, powerPreference: 'high-performance', alpha: false })
   renderer.toneMapping = ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.13
@@ -63,7 +91,7 @@ export function createSimulator(options: SimulatorOptions) {
   controls.enablePan = false
   controls.rotateSpeed = 0.62
   controls.zoomSpeed = 0.76
-  controls.minDistance = 14
+  controls.minDistance = MIN_DISTANCE
   controls.maxDistance = 2150
   controls.minPolarAngle = 0.07
   controls.maxPolarAngle = Math.PI - 0.07
@@ -79,7 +107,7 @@ export function createSimulator(options: SimulatorOptions) {
   const target = hdr ? undefined : new WebGLRenderTarget(1, 1)
   const composer = new EffectComposer(renderer, target)
   composer.addPass(new RenderPass(scene, camera))
-  const bloom = hdr ? new UnrealBloomPass(new Vector2(1, 1), 0.69, 0.69, 0.72) : undefined
+  const bloom = hdr ? new UnrealBloomPass(new Vector2(1, 1), 0.5, 0.6, 0.8) : undefined
   const antialias = hdr ? new SMAAPass() : undefined
   if (bloom && antialias) {
     composer.addPass(bloom)
@@ -89,18 +117,25 @@ export function createSimulator(options: SimulatorOptions) {
 
   const clock = new SimulationClock()
   const marker = new Vector3()
-  const callouts = createCalloutLayout(camera, armLabels.length + skyLabels.length + labels.length + 1
-    + Math.max(...bodyLabels.map(group => group.length)) + timeLabels.length)
+  const velocity = new Vector3()
+  const sun = new Vector3()
+  const callouts = createCalloutLayout(camera, armLabels.length + ringLabels.length + skyLabels.length
+    + systemLabels.length + 1 + Math.max(...bodyLabels.map(group => group.length)) + timeLabels.length)
   const armPositions = arms.map(arm => armAnchor(arm, 0))
   const center = new Vector3()
   const previousCenter = new Vector3()
   const displacement = new Vector3()
   const core = new Vector3()
+  // Direction from a tracked system to the camera's pivot, and that offset as a share of the camera distance.
+  const lead = { direction: new Vector3(), ratio: 0 }
+  const UP = new Vector3(0, 1, 0)
+  let heading = 0
+  let obstacles: Rect[] = []
   let transition: Transition | undefined
   let active = -1
   let skyTarget = -1
   let view = defaultViewSettings
-  let fieldOfView = 46
+  let fieldOfView = MODEL_FOV
   let showLabels = true
   let showTimeMarks = true
   let width = 1
@@ -111,6 +146,8 @@ export function createSimulator(options: SimulatorOptions) {
   let lastFrame: number | undefined
   let frameAverage = 1 / 60
   let qualityTimer = 0
+  let telemetryTimer = TELEMETRY_INTERVAL
+  let obstacleTimer = OBSTACLE_INTERVAL
   let fpsFrames = 0
   let fpsDuration = 0
   let firstFrame = true
@@ -132,24 +169,41 @@ export function createSimulator(options: SimulatorOptions) {
     orbits.uniforms.uViewport.value.set(width, height)
     galaxy.disk.material.uniforms.uDpr.value = dpr
     galaxy.sky.material.uniforms.uDpr.value = dpr
+    obstacleTimer = OBSTACLE_INTERVAL
+  }
+
+  function measureObstacles() {
+    const origin = viewport.getBoundingClientRect()
+    obstacles = options.obstacles.flatMap(element => {
+      const rect = element.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return []
+      return [{
+        left: rect.left - origin.left - OBSTACLE_PADDING, top: rect.top - origin.top - OBSTACLE_PADDING,
+        right: rect.right - origin.left + OBSTACLE_PADDING, bottom: rect.bottom - origin.top + OBSTACLE_PADDING,
+      }]
+    })
   }
 
   function framing(index: number, north: boolean) {
     if (index < 0) return {
-      position: (north ? northPosition : overviewPosition).clone().sub(overviewTarget)
-        .multiplyScalar(Math.max(1, 1.08 / camera.aspect)).add(overviewTarget),
-      target: overviewTarget.clone(),
+      position: (north ? NORTH_POSITION : OVERVIEW_POSITION).clone().sub(OVERVIEW_TARGET)
+        .multiplyScalar(Math.max(1, 1.08 / camera.aspect)).add(OVERVIEW_TARGET),
+      target: OVERVIEW_TARGET.clone(),
     }
     const system = systems[index]
     const position = new Vector3()
     const tangent = new Vector3()
     sampleSystem(system, clock.time, position, tangent)
+    tangent.normalize()
     const outward = new Vector3().crossVectors(camera.up, tangent).normalize()
-    const target = position.clone().addScaledVector(tangent, -6.8)
+    const target = position.clone().addScaledVector(tangent, -TRAIL_LEAD)
     position.addScaledVector(outward, system.viewDistance * 0.87)
       .addScaledVector(camera.up, system.viewDistance * 0.58)
       .addScaledVector(tangent, system.viewDistance * 0.19)
     position.sub(target).multiplyScalar(Math.max(1, 0.96 / camera.aspect)).add(target)
+    lead.direction.copy(tangent).negate()
+    lead.ratio = TRAIL_LEAD / position.distanceTo(target)
+    heading = Math.atan2(tangent.z, tangent.x)
     return { position, target }
   }
 
@@ -161,9 +215,10 @@ export function createSimulator(options: SimulatorOptions) {
     skyTarget = target
     diskScene.visible = skyTarget < 0
     controls.enableZoom = skyTarget < 0
-    controls.minDistance = skyTarget < 0 ? 14 : 0.1
-    fieldOfView = skyTarget < 0 ? 46 : skyCatalog[skyTarget].fieldOfView
+    controls.minDistance = skyTarget < 0 ? MIN_DISTANCE : 0.1
+    fieldOfView = skyTarget < 0 ? MODEL_FOV : skyCatalog[skyTarget].fieldOfView
     orbits.uniforms.uFocus.value = index
+    telemetryTimer = TELEMETRY_INTERVAL
     if (index >= 0) sampleSystem(systems[index], clock.time, previousCenter)
   }
 
@@ -208,13 +263,23 @@ export function createSimulator(options: SimulatorOptions) {
 
   function updateCamera(delta: number) {
     if (active >= 0) {
-      sampleSystem(systems[active], clock.time, center)
+      sampleSystem(systems[active], clock.time, center, velocity)
       displacement.subVectors(center, previousCenter)
       previousCenter.copy(center)
+      // Turn the camera with the system's direction of travel so the trail keeps its place in the frame,
+      // however far the clock runs or is scrubbed.
+      const nextHeading = Math.atan2(velocity.z, velocity.x)
+      const turn = heading - nextHeading
+      heading = nextHeading
+      lead.direction.applyAxisAngle(UP, turn)
       if (transition) {
-        transition.toPosition.add(displacement)
-        transition.toTarget.add(displacement)
+        transition.toPosition.add(displacement).sub(center).applyAxisAngle(UP, turn).add(center)
+        transition.toTarget.add(displacement).sub(center).applyAxisAngle(UP, turn).add(center)
       } else {
+        camera.position.sub(controls.target).applyAxisAngle(UP, turn).add(controls.target)
+        // The pivot closes in on the system as the camera does, so zooming ends at the star itself.
+        const reach = lead.ratio * camera.position.distanceTo(controls.target)
+        displacement.copy(center).addScaledVector(lead.direction, reach).sub(controls.target)
         camera.position.add(displacement)
         controls.target.add(displacement)
       }
@@ -222,7 +287,7 @@ export function createSimulator(options: SimulatorOptions) {
 
     if (transition) {
       transition.elapsed += delta
-      const t = Math.min(transition.elapsed / 1.55, 1)
+      const t = Math.min(transition.elapsed / TRANSITION_SECONDS, 1)
       const ease = t * t * (3 - 2 * t)
       camera.position.lerpVectors(transition.fromPosition, transition.toPosition, ease)
       controls.target.lerpVectors(transition.fromTarget, transition.toTarget, ease)
@@ -237,49 +302,67 @@ export function createSimulator(options: SimulatorOptions) {
     camera.updateMatrixWorld()
   }
 
-  function project(element: HTMLElement, position: Vector3) {
-    position.project(camera)
-    const visible = position.z > -1 && position.z < 1 && Math.abs(position.x) < 0.91 && Math.abs(position.y) < 0.85
-    const x = (position.x + 1) * width * 0.5
-    const y = (1 - position.y) * height * 0.5
-    element.hidden = !visible || y < (width < 600 ? 111 : 138)
-    if (!element.hidden) {
-      element.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
-      element.dataset.align = x > width - 148 ? 'left' : 'right'
-      const left = element.dataset.align === 'left' ? x - 125 : x - 8
-      callouts.reserve(left, y - 12, left + 136, y + 15)
-    }
+  function updateTelemetry(delta: number) {
+    telemetryTimer += delta
+    if (active < 0 || telemetryTimer < TELEMETRY_INTERVAL) return
+    telemetryTimer = 0
+    sampleSystem(systems[active], clock.time, marker, velocity)
+    sampleSystem(systems[0], clock.time, sun)
+    options.onTelemetry({
+      radius: Math.hypot(marker.x, marker.z) * LY_PER_UNIT,
+      height: marker.y * LY_PER_UNIT,
+      speed: toKms(velocity.length()),
+      separation: marker.distanceTo(sun) * LY_PER_UNIT,
+    })
+  }
+
+  function markCore() {
+    const visible = callouts.locate(marker.copy(core))
+    coreLabel.hidden = !visible
+    if (!visible) return
+    coreLabel.style.transform = `translate3d(${marker.x.toFixed(1)}px, ${marker.y.toFixed(1)}px, 0)`
+    callouts.reserve(marker.x - 8, marker.y + 14, marker.x + 150, marker.y + 46)
   }
 
   function updateAnnotations(time: number) {
-    callouts.begin(width, height)
-    for (let index = 0; index < labels.length; index++) {
-      if (active >= 0 || skyTarget >= 0 || !showLabels) labels[index].hidden = true
+    callouts.begin(width, height, obstacles)
+    const overview = active < 0 && skyTarget < 0 && showLabels
+    for (let index = 0; index < systemLabels.length; index++) {
+      if (!overview) systemLabels[index].element.hidden = true
       else {
         sampleSystem(systems[index], time, marker)
-        project(labels[index], marker)
+        callouts.place(systemLabels[index], marker)
       }
     }
-    if (active >= 0 || skyTarget >= 0 || !showLabels) coreLabel.hidden = true
-    else project(coreLabel, marker.copy(core))
+    if (overview) markCore()
+    else coreLabel.hidden = true
 
-    const spin = time * PATTERN_SPEED
-    const cos = Math.cos(spin)
-    const sin = Math.sin(spin)
+    const mapLabels = overview && !transition
     for (let index = 0; index < armLabels.length; index++) {
       const label = armLabels[index]
-      if (!showLabels || !view.armLabels || active >= 0 || skyTarget >= 0 || transition) {
+      if (!mapLabels || !view.armLabels) {
         label.element.hidden = true
         continue
       }
       if (index < arms.length) {
+        const spin = time * labelSpeed(arms[index])
         const [x, y, z] = armPositions[index]
-        marker.set(x * cos - z * sin, y, x * sin + z * cos)
+        marker.set(x * Math.cos(spin) - z * Math.sin(spin), y, x * Math.sin(spin) + z * Math.cos(spin))
       } else {
-        const angle = BAR_AZIMUTH + spin
-        marker.set(30 * Math.cos(angle), 4, 30 * Math.sin(angle))
+        const angle = BAR_AZIMUTH + time * BAR_SPEED
+        marker.set(BAR_LABEL_RADIUS * Math.cos(angle), 4, BAR_LABEL_RADIUS * Math.sin(angle))
       }
-      callouts.place(label, marker, false, 112)
+      callouts.place(label, marker)
+    }
+    for (let index = 0; index < ringLabels.length; index++) {
+      const label = ringLabels[index]
+      if (!mapLabels || !view.rings) {
+        label.element.hidden = true
+        continue
+      }
+      const radius = RING_RADII_KPC[index] * UNITS_PER_KPC
+      marker.set(radius * Math.cos(RING_LABEL_AZIMUTH), -3.5, radius * Math.sin(RING_LABEL_AZIMUTH))
+      callouts.place(label, marker)
     }
 
     for (let index = 0; index < skyLabels.length; index++) {
@@ -288,8 +371,7 @@ export function createSimulator(options: SimulatorOptions) {
         label.element.hidden = true
         continue
       }
-      marker.copy(camera.position).addScaledVector(sky.directions[index], sky.photoRadius)
-      callouts.place(label, marker, false, skyTarget >= 0 ? 30 : 112)
+      callouts.place(label, sky.locate(index, camera.position, skyTarget >= 0, marker))
     }
 
     if (active >= 0) {
@@ -297,14 +379,17 @@ export function createSimulator(options: SimulatorOptions) {
       for (let index = 0; index < system.bodies.length; index++) {
         const label = bodyLabels[active][index]
         if (showLabels && !transition) {
-          sampleBody(system, system.bodies[index], time, marker)
+          sampleSystem(system, time, marker)
+          const [x, y, z] = bodyOffset(system.bodies[index], time)
+          marker.set(marker.x + x, marker.y + y, marker.z + z)
           callouts.place(label, marker)
         } else label.element.hidden = true
       }
     }
 
     const axisVisible = active >= 0 && showTimeMarks && view.frame === 'galactic' && view.trails && !transition
-    trailAxis.line.visible = axisVisible
+    // A star at its system's center already draws this path with its own trail.
+    trailAxis.line.visible = axisVisible && systems[active].bodies[0].orbit.radius > 0
     if (!axisVisible) {
       for (const label of timeLabels) label.element.hidden = true
       return
@@ -336,14 +421,23 @@ export function createSimulator(options: SimulatorOptions) {
     if (!paused) clock.advance(delta, rate)
     options.onFrame(clock.time, cameraDelta)
     updateCamera(cameraDelta)
+    updateTelemetry(cameraDelta)
+    obstacleTimer += cameraDelta
+    if (obstacleTimer >= OBSTACLE_INTERVAL) {
+      obstacleTimer = 0
+      measureObstacles()
+    }
     orbits.setTime(clock.time)
-    const dustTarget = (active < 0 ? 1 : 0.42) * view.dust / 100
-    galaxy.dustGain.value += (dustTarget - galaxy.dustGain.value) * (1 - Math.exp(-cameraDelta * 4))
-    const fullDust = view.quality !== 'smooth' && scale > 0.78
-    galaxy.dust[0].visible = fullDust && galaxy.dustGain.value > 0.008
-    galaxy.dust[1].visible = galaxy.dustGain.value > 0.008
-    galaxy.dust[2].visible = fullDust && galaxy.dustGain.value > 0.008
-    galaxy.dust[1].material.uniforms.uIntensity.value = fullDust ? 0.58 : 0.92
+    const gainTarget = (active < 0 ? 1 : 0.34) * view.dust / 100
+    const settle = 1 - Math.exp(-cameraDelta * 4)
+    galaxy.gain.value += (gainTarget - galaxy.gain.value) * settle
+    galaxy.closeup.value += ((active < 0 ? 0 : 1) - galaxy.closeup.value) * settle
+    const fullDetail = view.quality !== 'smooth' && scale > 0.78
+    const lit = galaxy.gain.value > 0.008
+    galaxy.layers[0].visible = fullDetail && lit
+    galaxy.layers[1].visible = lit
+    galaxy.layers[2].visible = fullDetail && lit
+    galaxy.layers[1].material.uniforms.uIntensity.value = fullDetail ? 0.58 : 0.92
     galaxy.sky.visible = skyTarget < 0 && view.stars
     galaxy.rings.visible = view.rings && active < 0
     orbits.ribbons.visible = view.trails
@@ -377,14 +471,24 @@ export function createSimulator(options: SimulatorOptions) {
   }
 
   controls.addEventListener('start', () => {
-    if (skyTarget < 0) transition = undefined
+    if (skyTarget < 0 && transition) {
+      transition = undefined
+      // Keep the camera where it was grabbed mid-flight by adopting its current pivot.
+      if (active >= 0) {
+        lead.direction.subVectors(controls.target, center)
+        lead.ratio = lead.direction.length() / Math.max(camera.position.distanceTo(controls.target), 1e-6)
+        lead.direction.normalize()
+      }
+    }
     options.onTakeover()
   })
   canvas.addEventListener('wheel', event => {
-    if (skyTarget < 0 || event.ctrlKey) return
+    if (skyTarget < 0) return
+    // A trackpad pinch arrives as a wheel event with ctrlKey set. Claim it so the page itself does not zoom.
     event.preventDefault()
     const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? height : 1)
-    setSkyZoom(fieldOfView * Math.exp(Math.min(1, Math.max(-1, pixels / 620))))
+    const step = event.ctrlKey ? pixels / 110 : pixels / 620
+    setSkyZoom(fieldOfView * Math.exp(Math.min(1, Math.max(-1, step))))
   }, { passive: false })
   canvas.addEventListener('webglcontextlost', () => {
     renderer.setAnimationLoop(null)

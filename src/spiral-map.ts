@@ -1,12 +1,18 @@
-import { systems } from './systems'
+import { BAR_PATTERN_SPEED, FREQUENCY_SCALE, RAD, SOLAR_AZIMUTH, SPIRAL_PATTERN_SPEED, UNITS_PER_KPC } from './astro'
 
-const RAD = Math.PI / 180
-export const UNITS_PER_KPC = systems[0].radius / 8.15
 export const DISK_EDGE = 315
-export const PATTERN_SPEED = 0.009
-export const BAR_AZIMUTH = systems[0].angle + 30 * RAD
+/** Radii of the distance rings in kiloparsecs. */
+export const RING_RADII_KPC = [5, 10, 15]
+// Pattern speeds in radians per simulation second. The spiral pattern nearly keeps pace with the Sun,
+// and the bar turns faster than the arms around it.
+export const PATTERN_SPEED = SPIRAL_PATTERN_SPEED * FREQUENCY_SCALE
+export const BAR_SPEED = BAR_PATTERN_SPEED * FREQUENCY_SCALE
+// Wegg, Gerhard & Portail (2015): the bar's near end leads the Sun–center line by about 28–33°.
+export const BAR_AZIMUTH = SOLAR_AZIMUTH + 30 * RAD
+// Inside this radius the gas lanes belong to the bar and turn with it.
+export const BAR_REACH = 4.1 * UNITS_PER_KPC
 
-interface Arm {
+export interface Arm {
   name: string
   kind: 'Stellar arm' | 'Spiral arm' | 'Spur' | 'Inner gas arm'
   labelAt: number
@@ -52,8 +58,13 @@ export function armRadius(arm: Arm, beta: number) {
   return fittedRadius(arm, boundary) * Math.exp(-(beta - boundary) * RAD * Math.tan(extensionPitch * RAD))
 }
 
+/** Angular speed of the structure under an arm's label: the bar's inside its reach, the spiral pattern's outside. */
+export function labelSpeed(arm: Arm) {
+  return armRadius(arm, arm.labelAt) * UNITS_PER_KPC < BAR_REACH ? BAR_SPEED : PATTERN_SPEED
+}
+
 export function armAnchor(arm: Arm, time: number): [number, number, number] {
-  const theta = systems[0].angle + arm.labelAt * RAD + time * PATTERN_SPEED
+  const theta = SOLAR_AZIMUTH + arm.labelAt * RAD + time * labelSpeed(arm)
   const radius = armRadius(arm, arm.labelAt) * UNITS_PER_KPC
   return [radius * Math.cos(theta), 4, radius * Math.sin(theta)]
 }

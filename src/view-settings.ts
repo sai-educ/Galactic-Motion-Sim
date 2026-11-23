@@ -15,7 +15,7 @@ export interface ViewSettings {
 export const defaultViewSettings: ViewSettings = {
   quality: 'auto',
   frame: 'galactic',
-  bloom: 69,
+  bloom: 50,
   dust: 100,
   armLabels: true,
   skyLabels: true,
