@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#090b14" />
+    <meta name="description" content="Explore the Milky Way and follow the helical paths of four star systems in an interactive 3D simulation." />
+    <link rel="icon" href="/orbit.svg" type="image/svg+xml" />
+    <title>Galactic Motion — Milky Way Explorer</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Galactic Motion home">
+        <span class="brand-mark" data-icon="galaxy"></span>
+        <span>Galactic<span class="brand-accent"> Motion</span></span>
+      </a>
+      <span class="brand-caption">Milky Way Explorer</span>
+      <div class="header-actions">
+        <button class="overview-button" id="overview" type="button" aria-label="Galaxy overview" title="Galaxy overview (G)" data-scene-control disabled><span data-icon="crosshair"></span><span>Galaxy overview</span></button>
+        <button class="overview-button labels-button" id="labels" type="button" aria-label="Show object labels" aria-pressed="true" title="Show object labels" data-scene-control disabled><span data-icon="tag"></span><span>Labels</span></button>
+        <button class="icon-button" id="about" type="button" aria-label="About the simulation" title="About the simulation"><span data-icon="info"></span></button>
+        <button class="icon-button" id="fullscreen" type="button" aria-label="Enter fullscreen" title="Enter fullscreen"><span data-icon="expand"></span></button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="stage" id="stage" aria-label="3D galaxy viewport">
+        <div class="stage-image" aria-hidden="true"></div>
+        <canvas id="galaxy" aria-label="Interactive 3D model of the Milky Way"></canvas>
+        <div class="stage-shade" aria-hidden="true"></div>
+        <div class="fps-counter" id="fps-counter" title="Measured frames per second" hidden><span id="fps-value">–</span> FPS</div>
+        <div class="stage-heading" aria-live="polite">
+          <div class="eyebrow"><span></span><span id="view-kind">Galaxy overview</span></div>
+          <h1 id="view-title">Milky Way</h1>
+          <p id="view-description">Trace the paths of four star systems as they orbit the galactic center.</p>
+          <div class="body-key" id="body-key" hidden></div>
+          <div class="sky-coordinates" id="sky-coordinates" hidden></div>
+        </div>
+
+        <div class="annotations" id="annotations" aria-label="Galaxy and object labels">
+          <div class="annotation core-marker" id="core-label" hidden><span class="locator"></span><span class="annotation-name">Sagittarius A*</span></div>
+        </div>
+
+        <div class="scene-notice" id="scene-notice" role="status" hidden>
+          <span data-icon="info"></span><span id="scene-notice-text"></span>
+        </div>
+
+        <div class="tour-panel" id="tour-panel" hidden>
+          <div class="tour-caption"><span data-icon="route"></span><span id="tour-caption">Guided tour</span><span id="tour-step"></span></div>
+          <div class="tour-track" aria-hidden="true"><span id="tour-progress"></span></div>
+        </div>
+
+        <div class="timeline" id="timeline" hidden>
+          <div class="timeline-header">
+            <label for="time-scrubber"><span data-icon="clock"></span> Simulation time</label>
+            <output id="timeline-time" for="time-scrubber">00:00.0</output>
+            <label class="marks-control" id="marks-control" hidden><input id="time-marks" type="checkbox" data-scene-control checked disabled /> Trail timestamps</label>
+          </div>
+          <input id="time-scrubber" type="range" min="0" max="60" step="0.1" value="0" data-scene-control disabled />
+          <div class="timeline-ticks" id="timeline-ticks" aria-hidden="true"></div>
+        </div>
+
+        <div class="stage-tools">
+          <div class="view-controls" aria-hidden="true"><span data-icon="mouse"></span><span class="desktop-controls">Drag to orbit <i></i> Scroll to zoom</span><span class="touch-controls">Swipe to orbit <i></i> Pinch to zoom</span><span class="sky-controls-hint">Drag to look around</span></div>
+          <div class="image-credits" id="image-credits" hidden>
+            <a id="panorama-credit" href="https://www.eso.org/public/images/eso0932a/">All-sky panorama © ESO/S. Brunier</a>
+            <a id="photo-credit" hidden></a>
+          </div>
+          <button class="icon-button north-button" id="north-view" type="button" title="View from galactic north" aria-label="View from galactic north" data-scene-control disabled><span data-icon="orientation"></span><span>North view</span></button>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="Explorer controls">
+        <div class="sidebar-intro">
+          <p class="section-label"><span data-icon="telescope"></span> Observatory</p>
+          <h2 id="panel-title">Explore systems</h2>
+        </div>
+
+        <nav class="explorer-tabs" aria-label="Observatory panels">
+          <button type="button" data-panel="systems" aria-pressed="true"><span data-icon="galaxy"></span> Systems</button>
+          <button type="button" data-panel="sky" aria-pressed="false"><span data-icon="telescope"></span> Sky atlas</button>
+          <button type="button" data-panel="settings" aria-pressed="false"><span data-icon="sliders"></span> Settings</button>
+        </nav>
+
+        <div class="sidebar-panel system-panel" id="panel-systems">
+        <section class="mode-section" aria-labelledby="mode-label">
+          <h3 class="section-label" id="mode-label">Camera mode</h3>
+          <div class="segments" role="group" aria-label="Camera mode">
+            <button id="free-mode" type="button" aria-pressed="true" data-scene-control disabled><span data-icon="compass"></span> Free roam</button>
+            <button id="tour-mode" type="button" aria-pressed="false" data-scene-control disabled><span data-icon="route"></span> Guided tour</button>
+          </div>
+        </section>
+
+        <section class="systems-section" aria-labelledby="systems-label">
+          <h3 class="section-label" id="systems-label">Featured systems</h3>
+          <div class="systems-list" id="systems-list"></div>
+        </section>
+
+        <section class="settings" aria-labelledby="settings-label">
+          <h3 class="section-label" id="settings-label"><span data-icon="sliders"></span> Simulation controls</h3>
+          <div class="range-field">
+            <label for="rate">Time scale</label><output id="rate-value" for="rate">1×</output>
+            <input type="range" id="rate" min="0.25" max="4" step="0.25" value="1" data-scene-control disabled />
+          </div>
+          <div class="range-field">
+            <label for="trail">Trail length</label><output id="trail-value" for="trail">9 s</output>
+            <input type="range" id="trail" min="2" max="20" step="1" value="9" data-scene-control disabled />
+          </div>
+          <div class="playback">
+            <button id="playback" type="button" data-scene-control disabled><span data-icon="pause"></span><span>Pause simulation</span></button>
+            <button id="reset" type="button" class="icon-button" aria-label="Reset simulation" title="Reset simulation" data-scene-control disabled><span data-icon="reset"></span></button>
+          </div>
+        </section>
+        </div>
+
+        <div class="sidebar-panel catalog-panel" id="panel-sky" hidden>
+          <p class="panel-note">Choose a galaxy to look toward its catalog position from the Sun’s neighborhood.</p>
+          <div class="catalog-list" id="catalog-list"></div>
+          <div class="range-field sky-zoom" id="sky-zoom-field" hidden>
+            <label for="sky-zoom">Field of view</label><output id="sky-zoom-value" for="sky-zoom">12°</output>
+            <input type="range" id="sky-zoom" min="3" max="60" step="0.5" value="12" data-scene-control disabled />
+          </div>
+          <details class="map-key"><summary>Milky Way map key</summary><ul id="arm-key"></ul></details>
+        </div>
+
+        <div class="sidebar-panel settings-panel" id="panel-settings" hidden>
+          <fieldset class="control-group">
+            <legend>Motion</legend>
+            <label class="select-field" for="reference-frame">Trail reference frame</label>
+            <select id="reference-frame" data-scene-control disabled>
+              <option value="galactic">Galactic path</option>
+              <option value="system">System-centered orbits</option>
+            </select>
+            <p class="panel-note">System-centered orbits hold the host’s position fixed in the trail history.</p>
+            <label class="check-field"><span>Orbit trails</span><input type="checkbox" data-setting="trails" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Galactic reference rings</span><input type="checkbox" data-setting="rings" data-scene-control checked disabled /></label>
+          </fieldset>
+          <fieldset class="control-group">
+            <legend>Visual effects</legend>
+            <div class="range-field">
+              <label for="bloom">Bloom intensity</label><output id="bloom-value" for="bloom">69%</output>
+              <input type="range" id="bloom" min="0" max="100" step="1" value="69" data-scene-control disabled />
+            </div>
+            <div class="range-field">
+              <label for="dust">Galactic dust</label><output id="dust-value" for="dust">100%</output>
+              <input type="range" id="dust" min="0" max="100" step="1" value="100" data-scene-control disabled />
+            </div>
+            <label class="select-field" for="render-quality">Render quality</label>
+            <select id="render-quality" data-scene-control disabled>
+              <option value="auto">Auto</option>
+              <option value="smooth">Performance</option>
+              <option value="high">High detail</option>
+            </select>
+          </fieldset>
+          <fieldset class="control-group">
+            <legend>Sky and map layers</legend>
+            <label class="check-field"><span>Spiral arm labels</span><input type="checkbox" data-setting="armLabels" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Deep-sky labels</span><input type="checkbox" data-setting="skyLabels" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>All-sky photograph in atlas</span><input type="checkbox" data-setting="survey" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Telescope close-ups</span><input type="checkbox" data-setting="photographs" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Decorative stars</span><input type="checkbox" data-setting="stars" data-scene-control checked disabled /></label>
+          </fieldset>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="status-bar">
+      <div class="status-indicator" id="status" data-state="loading" role="status"><span></span><span id="status-text">Loading simulation</span></div>
+      <div class="elapsed" aria-label="Simulation elapsed time"><span data-icon="clock"></span><span id="elapsed">00:00</span></div>
+      <div class="scale-note">Illustrative model <span></span> Visual scale exaggerated</div>
+    </footer>
+
+    <dialog id="about-dialog" aria-labelledby="about-title">
+      <form method="dialog"><button class="icon-button close-dialog" aria-label="Close about"><span data-icon="close"></span></button></form>
+      <p class="section-label">About the simulation</p>
+      <h2 id="about-title">How the views work</h2>
+      <p>Galaxy overview, North view, and system close-ups show the 3D Milky Way model, optional decorative stars, and labeled telescope portraits. The Sky atlas looks outward from the Sun’s neighborhood and shows the bright band and dark dust lanes photographed from Earth. <a href="https://www.eso.org/public/images/eso0932a/">ESO’s Milky Way panorama</a></p>
+      <p>The Milky Way’s disk and the four systems travel clockwise as seen from galactic north. Planets and companion stars orbit in fixed planes as their systems travel. The model uses circular orbits and exaggerated distances, sizes, and speeds.</p>
+      <p>The time axis and the timestamps along the trails use the same simulation clock. Scrub the axis to pause at any point. The trails include motion from before 00:00.</p>
+      <p>The arm map follows <a href="https://arxiv.org/abs/1910.03357">Reid et al.’s maser measurements</a> near the Sun. Far-side continuations are inferred. Sky atlas directions come from catalog coordinates, and telescope close-ups use enlarged, processed observatory images.</p>
+      <div class="keyboard-help"><span><kbd>Space</kbd> Pause or play</span><span><kbd>G</kbd> Galaxy overview</span></div>
+    </dialog>
+    <noscript><p class="no-script">Enable JavaScript to use the interactive galaxy.</p></noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
