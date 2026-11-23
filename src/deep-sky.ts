@@ -2,11 +2,12 @@ import {
   AdditiveBlending, BackSide, GLSL3, Group, Mesh, PlaneGeometry, ShaderMaterial,
   SphereGeometry, SRGBColorSpace, TextureLoader, Vector3, type Texture,
 } from 'three'
+import { RAD, UNITS_PER_KPC } from './astro'
 import { galacticCoordinates, skyAsset, skyCatalog, skyDirection } from './sky-catalog'
+import { sampleSystem, systems } from './systems'
 
 const SKY_RADIUS = 4750
 const PHOTO_RADIUS = 4200
-const RAD = Math.PI / 180
 
 export function createDeepSky() {
   const loader = new TextureLoader()
@@ -65,6 +66,11 @@ export function createDeepSky() {
     const { l, b } = galacticCoordinates(object.ra, object.dec)
     return new Vector3(...skyDirection(l, b))
   })
+  // The Magellanic Clouds are close enough to sit at their present-day positions beside the disk.
+  const sunToday = new Vector3()
+  sampleSystem(systems[0], 0, sunToday)
+  const satellites = skyCatalog.map((object, index) => object.satellite
+    && sunToday.clone().addScaledVector(directions[index], object.satellite.distanceKpc * UNITS_PER_KPC))
   const plane = new PlaneGeometry(1, 1)
   const photos = skyCatalog.map((object, index) => {
     const texture = loader.load(skyAsset(object.id))
@@ -124,12 +130,26 @@ export function createDeepSky() {
       }
       const object = skyCatalog[index]
       const closeup = selected === index
+      const satellite = satellites[index]
       const angle = closeup ? object.fieldOfView * 0.78 : Math.min(7.6, object.fieldOfView * 0.48)
       photos[index].visible = true
-      photos[index].material.uniforms.uSize.value = 2 * PHOTO_RADIUS * Math.tan(angle * RAD / 2)
+      if (satellite && object.satellite && !observingFromSun) {
+        photos[index].position.subVectors(satellite, observer)
+        photos[index].material.uniforms.uSize.value = object.satellite.widthKpc * UNITS_PER_KPC
+      } else {
+        photos[index].position.copy(directions[index]).multiplyScalar(PHOTO_RADIUS)
+        photos[index].material.uniforms.uSize.value = 2 * PHOTO_RADIUS * Math.tan(angle * RAD / 2)
+      }
       photos[index].material.uniforms.uGain.value = closeup ? 1.33 : 0.49
     }
   }
 
-  return { atlas, directions, update, photoRadius: PHOTO_RADIUS }
+  /** World position of an object's marker for an observer at `observer`. */
+  function locate(index: number, observer: Vector3, atlasView: boolean, target: Vector3) {
+    const satellite = satellites[index]
+    if (satellite && !atlasView) return target.copy(satellite)
+    return target.copy(observer).addScaledVector(directions[index], PHOTO_RADIUS)
+  }
+
+  return { atlas, directions, update, locate }
 }
