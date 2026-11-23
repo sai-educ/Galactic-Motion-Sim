@@ -69,10 +69,6 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 | `npm run build` | Type-check, run the tests, and generate static production files in `dist` |
 | `npm run preview` | Serve the existing production build locally, usually at port 4173 |
 
-## Deploy to Vercel
-
-Import the repository and select the **Vite** framework preset. Use `npm run build` as the build command and `dist` as the output directory. The project deploys as a self-contained static bundle with local imagery and fonts. [Vercel’s Vite documentation](https://vercel.com/docs/frameworks/frontend/vite)
-
 ## Controls and navigation
 
 - **Systems** lists the four systems. Select a card, a projected marker, or press **1**–**4** to track one. Drag to orbit the camera and scroll or pinch to zoom. Zooming in closes on the star itself, and planets grow into shaded globes.
