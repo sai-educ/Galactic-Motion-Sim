@@ -2,6 +2,28 @@
 
 Galactic Motion is a browser-based 3D explorer of the Milky Way. Follow the Solar System, Alpha Centauri, Sirius, and TRAPPIST-1 around the galactic center on orbits computed from their measured positions and velocities, watch their planets and companion stars trace helices, or switch to the Sky atlas to look outward from the Sun.
 
+![Galactic Motion’s Milky Way overview with labeled spiral arms, the simulation timeline, and the featured star systems sidebar](docs/media/milky-way-overview.webp)
+
+## Four star systems in motion
+
+The side-by-side animation uses **System-centered orbits** to show the local motion of planets and companion stars. The screenshots below show the same systems in the **Galactic path** view, with trails following the systems through the Milky Way.
+
+![Animated side-by-side comparison of orbits in the Solar System, Alpha Centauri, Sirius, and TRAPPIST-1](docs/media/four-star-systems.gif)
+
+| Solar System | Alpha Centauri |
+| --- | --- |
+| [![Close-up of the Sun and its planets with colored trails](docs/media/solar-system.webp)](docs/media/solar-system.webp) | [![Close-up of Alpha Centauri with trails for its companion stars](docs/media/alpha-centauri.webp)](docs/media/alpha-centauri.webp) |
+
+| Sirius | TRAPPIST-1 |
+| --- | --- |
+| [![Close-up of Sirius A and Sirius B with their orbital trails](docs/media/sirius.webp)](docs/media/sirius.webp) | [![Close-up of TRAPPIST-1 and its seven planets with colored trails](docs/media/trappist-1.webp)](docs/media/trappist-1.webp) |
+
+## Credits and citation
+
+Sai Gattupalli, PhD, made Galactic Motion with Opus 5.5, using the iterative prompting techniques described in the following paper.
+
+Gattupalli, S., & Chakravarty, P. (2025). *Prompting the Universe: AI-Generated Physics Simulations for Engaged Learning*. ScholarWorks@UMassAmherst. [DOI 10.7275/bddm-yf93](https://doi.org/10.7275/bddm-yf93)
+
 ## What is measured and what is enlarged
 
 | Part of the model | Status |
@@ -21,7 +43,7 @@ The **3D disk** and the **photographic band** are two views of the same galaxy. 
 
 | View | What the camera shows | What appears behind it |
 | --- | --- | --- |
-| Galaxy overview and North view | The modeled 3D disk, central bar, named arms, distance rings, and one marker and trail for each system | A dark sky, optional decorative star points, the Magellanic Clouds at their present-day positions, and optional telescope portraits of more distant galaxies |
+| Galaxy overview and North view | The modeled 3D disk, central bar, named arms, distance rings, and one marker and trail for each system | A dark sky, optional decorative star points, and optional telescope portraits of more distant galaxies |
 | System close-up | A moving camera follows one system’s center of mass while its planets or companion stars trace their paths | The same modeled disk and background layers, dimmed |
 | Sky atlas | A catalog direction as seen from the Sun today | The optional ESO sky photograph and an optional enlarged telescope portrait of the selected object |
 | Static preview | An illustrated galaxy image while the renderer loads or when WebGL 2 is unavailable | The packaged preview image |
@@ -66,7 +88,7 @@ Import the repository and select the **Vite** framework preset. Use `npm run bui
 
 | Control | Default | What it changes |
 | --- | --- | --- |
-| Time scale | 1× | Advances the simulation clock at 0.25× to 4× in 0.25× steps |
+| Time scale | 0.25× | Advances the simulation clock at 0.25× to 4× in 0.25× steps |
 | Trail length | 9 seconds | Changes the sampled history window from 2 to 20 simulation seconds, or about 3 to 27 million years |
 | Simulation time | 00:00.0 | Scrubs in tenths of a simulation second and shows the matching span of galactic time. Seeking pauses playback and ends a guided tour. The range starts at 60 seconds and expands in 60-second increments as playback reaches its end. |
 | Trail timestamps | On | In a tracked system’s galactic frame, marks earlier times along its path. Negative timestamps are positions before the year 2000. |
@@ -84,7 +106,7 @@ Import the repository and select the **Vite** framework preset. Use `npm run bui
 | Spiral arm labels | On | Shows named structures when viewing the full modeled disk |
 | Deep-sky labels | On | Shows names for visible catalog objects |
 | All-sky photograph in atlas | On | Shows the ESO panorama when an atlas object is selected |
-| Telescope close-ups | On | Shows the enlarged galaxy portraits in the atlas and as background objects in model views |
+| Telescope close-ups | On | Shows enlarged galaxy portraits in the atlas and portraits of distant galaxies in model views |
 | Background stars (decorative) | On | Draws procedural star points behind the modeled disk |
 | Field of view | Object-specific | Changes the atlas camera’s vertical field of view from 3° to 60° |
 
@@ -229,9 +251,9 @@ The catalog stores ICRS right ascension and declination in degrees, a display na
 
 The atlas maps **ESO/S. Brunier**’s photographic panorama to the inside of a camera-centered sphere. A small rotation registers the photograph against Andromeda, Sirius, Canopus, and the Magellanic Clouds. The shader then converts each sky direction into longitude and latitude texture coordinates. The panorama is resized and reprojected here. [Original ESO panorama](https://www.eso.org/public/images/eso0932a/) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
-In the model views, the two Magellanic Clouds sit where they are today, 49.6 and 62.4 kiloparsecs from the Sun, at roughly their real sizes. Their own orbits around the Milky Way are not modeled. The four more distant galaxies are drawn at their catalog directions.
+The Magellanic Clouds appear in the Sky atlas. The four more distant galaxies also appear in model views at their catalog directions.
 
-Telescope portraits are center-cropped, resized, and drawn as edge-blended billboards. Outside the Magellanic Clouds they use illustrative sizes and brightness, and the atlas masks the wider photograph around the selected portrait to avoid showing a second image of the same target. To see the object’s surroundings in the photographic sky, turn off **Telescope close-ups** and leave **All-sky photograph in atlas** enabled.
+Telescope portraits are center-cropped, resized, and drawn as edge-blended billboards with illustrative sizes and brightness. The atlas masks the wider photograph around the selected portrait to avoid showing a second image of the same target. To see the object’s surroundings in the photographic sky, turn off **Telescope close-ups** and leave **All-sky photograph in atlas** enabled.
 
 ## Source layout
 
@@ -247,7 +269,7 @@ Telescope portraits are center-cropped, resized, and drawn as edge-blended billb
 | [`src/spiral-map.ts`](src/spiral-map.ts) | Named arm definitions, pattern speeds, polar texture data, and map anchors |
 | [`src/galaxy.ts`](src/galaxy.ts) | Disk stars, decorative stars, the disk’s diffuse light and dust, and distance rings |
 | [`src/sky-catalog.ts`](src/sky-catalog.ts) | Catalog entries and directions in scene coordinates |
-| [`src/deep-sky.ts`](src/deep-sky.ts) | Telescope billboards, Magellanic Cloud positions, panorama projection and masking |
+| [`src/deep-sky.ts`](src/deep-sky.ts) | Telescope billboards, panorama projection and masking |
 | [`src/tour.ts`](src/tour.ts) | Guided tour chapters and narration |
 | [`src/clock.ts`](src/clock.ts), [`src/timeline.ts`](src/timeline.ts), [`src/trail-axis.ts`](src/trail-axis.ts) | Simulation time, seek UI, and the dashed timestamp guide |
 | [`src/callouts.ts`](src/callouts.ts), [`src/icons.ts`](src/icons.ts), [`src/style.css`](src/style.css) | Projected label layout, interface icons, and responsive styling |

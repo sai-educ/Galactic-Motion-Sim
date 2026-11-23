@@ -367,11 +367,12 @@ export function createSimulator(options: SimulatorOptions) {
 
     for (let index = 0; index < skyLabels.length; index++) {
       const label = skyLabels[index]
-      if (!showLabels || !view.skyLabels || transition || skyTarget === index) {
+      if (!showLabels || !view.skyLabels || transition || skyTarget === index
+        || (skyTarget < 0 && skyCatalog[index].atlasOnly)) {
         label.element.hidden = true
         continue
       }
-      callouts.place(label, sky.locate(index, camera.position, skyTarget >= 0, marker))
+      callouts.place(label, sky.locate(index, camera.position, marker))
     }
 
     if (active >= 0) {

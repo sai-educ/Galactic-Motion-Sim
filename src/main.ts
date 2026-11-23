@@ -479,7 +479,7 @@ document.addEventListener('keydown', (event) => {
   action()
 })
 
-applyRate()
+setRange(rate, 'rate-value', '×')
 applyTrail()
 setRange(bloomControl, 'bloom-value', '%')
 setRange(dustControl, 'dust-value', '%')
@@ -512,6 +512,7 @@ async function initialize() {
         unavailable('The 3D renderer lost its connection. Reload to restart the simulation.')
       },
     })
+    simulator.setRate(rate.valueAsNumber)
     updateView(-1)
   } catch (error) {
     console.info('Unable to start the WebGL renderer.', error)

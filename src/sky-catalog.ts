@@ -14,8 +14,7 @@ export interface SkyObject {
   imageAspect: number
   /** The kind of light the portrait records. Infrared portraits are false color. */
   band: string
-  /** Set for the Milky Way's satellites, which are near enough to place at their real positions. */
-  satellite?: { distanceKpc: number, widthKpc: number }
+  atlasOnly?: boolean
   source: string
   credit: string
 }
@@ -38,14 +37,14 @@ export const skyCatalog: SkyObject[] = [
     id: 'lmc', name: 'Large Magellanic Cloud', designation: 'LMC', kind: 'Milky Way satellite',
     distance: '160,000 light-years', ra: 80.89417, dec: -69.75611, fieldOfView: 20, imageAspect: 1,
     band: 'Infrared · false color',
-    satellite: { distanceKpc: 49.6, widthKpc: 9.3 },
+    atlasOnly: true,
     source: 'https://science.nasa.gov/photojournal/our-chaotic-neighbor/', credit: 'NASA/JPL-Caltech/STScI',
   },
   {
     id: 'smc', name: 'Small Magellanic Cloud', designation: 'SMC', kind: 'Milky Way satellite',
     distance: '200,000 light-years', ra: 13.15833, dec: -72.80028, fieldOfView: 14, imageAspect: 1.276,
     band: 'Infrared · false color',
-    satellite: { distanceKpc: 62.4, widthKpc: 5.8 },
+    atlasOnly: true,
     source: 'https://science.nasa.gov/photojournal/wises-view-of-a-wispy-cloud/', credit: 'NASA/JPL-Caltech/UCLA',
   },
   {

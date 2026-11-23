@@ -30,7 +30,7 @@
         <div class="stage-shade" aria-hidden="true"></div>
         <div class="fps-counter" id="fps-counter" title="Measured frames per second" hidden><span id="fps-value">–</span> FPS</div>
         <div class="stage-heading" id="stage-heading" aria-live="polite">
-          <div class="eyebrow"><span></span><span id="view-kind">Galaxy overview</span></div>
+          <div class="eyebrow" id="view-kind">Galaxy overview</div>
           <h1 id="view-title">Milky Way</h1>
           <p id="view-description"></p>
           <div class="body-key" id="body-key" hidden></div>
@@ -107,15 +107,15 @@
         </section>
 
         <section class="systems-section" aria-labelledby="systems-label">
-          <h3 class="section-label" id="systems-label">Featured systems</h3>
+          <h3 class="section-label" id="systems-label">Featured star systems</h3>
           <div class="systems-list" id="systems-list"></div>
         </section>
 
         <section class="settings" aria-labelledby="settings-label">
           <h3 class="section-label" id="settings-label"><span data-icon="sliders"></span> Simulation controls</h3>
           <div class="range-field">
-            <label for="rate">Time scale</label><output id="rate-value" for="rate">1×</output>
-            <input type="range" id="rate" min="0.25" max="4" step="0.25" value="1" data-scene-control disabled />
+            <label for="rate">Time scale</label><output id="rate-value" for="rate">0.25×</output>
+            <input type="range" id="rate" min="0.25" max="4" step="0.25" value="0.25" data-scene-control disabled />
           </div>
           <div class="range-field">
             <label for="trail">Trail length</label><output id="trail-value" for="trail">9 s</output>
@@ -193,12 +193,15 @@
       <p><strong>Time.</strong> One simulation second spans about 1.36 million years of galactic motion. The clock starts at the year 2000, and the trails show where each system came from before then.</p>
       <p><strong>Close-ups.</strong> Planets and companion stars move on ellipses in their measured orbital planes, starting from their positions in 2000. Their sizes and orbits are enlarged enormously and their motion is sped up so that you can see it. The Solar System’s spacing is compressed, and TRAPPIST-1’s orbits are drawn to scale with one another. TRAPPIST-1’s planet colors are for telling them apart.</p>
       <p><strong>The Galaxy.</strong> The disk turns clockwise as seen from galactic north. The arms near the Sun follow <a href="https://arxiv.org/abs/1910.03357">Reid et al.’s maser measurements</a>, and the far side is inferred. The spiral pattern turns at <a href="https://arxiv.org/abs/1905.08133">28 km/s per kiloparsec</a> and the bar at <a href="https://arxiv.org/abs/1608.07954">39</a>, so stars drift through the arms. Star colors follow temperature: blue-white young stars in the arms, golden old stars in the bar.</p>
-      <p><strong>The sky.</strong> The Sky atlas looks out from the Sun toward catalog positions, over <a href="https://www.eso.org/public/images/eso0932a/">ESO’s Milky Way panorama</a>. Several telescope portraits are infrared and shown in false color. The Magellanic Clouds sit at their present-day positions beside the disk.</p>
+      <p><strong>The sky.</strong> The Sky atlas looks out from the Sun toward catalog positions, over <a href="https://www.eso.org/public/images/eso0932a/">ESO’s Milky Way panorama</a>. Several telescope portraits are infrared and shown in false color.</p>
       <div class="keyboard-help">
         <span><kbd>Space</kbd> Pause or play</span><span><kbd>1</kbd>–<kbd>4</kbd> Follow a system</span>
         <span><kbd>G</kbd> Galaxy overview</span><span><kbd>N</kbd> North view</span>
         <span><kbd>T</kbd> Guided tour</span><span><kbd>L</kbd> Labels</span>
       </div>
+      <hr class="about-divider" />
+      <p>This simulation was made by <strong>Sai Gattupalli, PhD</strong> with Opus 5.5, using the iterative prompting techniques described in <cite>Prompting the Universe</cite>. <a href="https://doi.org/10.7275/bddm-yf93">DOI 10.7275/bddm-yf93</a></p>
+      <p>The source code is available on GitHub. <a href="https://github.com/sai-educ/Galactic-Motion-Sim">Galactic Motion repository</a></p>
     </dialog>
     <noscript><p class="no-script">Enable JavaScript to use the interactive galaxy.</p></noscript>
     <script type="module" src="/src/main.ts"></script>
