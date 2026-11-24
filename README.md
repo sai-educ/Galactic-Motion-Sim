@@ -46,7 +46,7 @@ The **3D disk** and the **photographic band** are two views of the same galaxy. 
 | Galaxy overview and North view | The modeled 3D disk, central bar, named arms, distance rings, and one marker and trail for each system | A dark sky, optional decorative star points, and optional telescope portraits of more distant galaxies |
 | System close-up | A moving camera follows one system’s center of mass while its planets or companion stars trace their paths | The same modeled disk and background layers, dimmed |
 | Sky atlas | A catalog direction as seen from the Sun today | The optional ESO sky photograph and an optional enlarged telescope portrait of the selected object |
-| Static preview | An illustrated galaxy image while the renderer loads or when WebGL 2 is unavailable | The packaged preview image |
+| Static preview | An illustrated galaxy image when WebGL 2 is unavailable or the renderer stops. While the renderer loads, the stage stays dark. | The packaged preview image |
 
 ## Run locally
 
@@ -121,7 +121,7 @@ The FPS counter in the upper right reports measured animation frames per second,
 | HTML, CSS, native DOM events and ranges | Responsive controls, accessible buttons and settings, an About dialog, projected labels, the time scrubber, and viewport overlays |
 | Fontsource, DM Sans and Space Grotesk | Self-hosted Latin-subset variable fonts for the interface |
 | WebP | Local, compressed sky photographs, telescope portraits, and the static preview |
-| OpenAI ImageGen | Created the illustrated startup and fallback image during development. The atlas uses the credited observations below. |
+| OpenAI ImageGen | Created the illustrated fallback image during development. The atlas uses the credited observations below. |
 | Vitest | Unit tests for the orbit integration, coordinate frames, orbital elements, and timing |
 | Node.js and npm | Local development, package management, and production builds |
 | Vercel | Static hosting for the compiled Vite output |
@@ -270,7 +270,7 @@ Telescope portraits are center-cropped, resized, and drawn as edge-blended billb
 | [`src/clock.ts`](src/clock.ts), [`src/timeline.ts`](src/timeline.ts), [`src/trail-axis.ts`](src/trail-axis.ts) | Simulation time, seek UI, and the dashed timestamp guide |
 | [`src/callouts.ts`](src/callouts.ts), [`src/icons.ts`](src/icons.ts), [`src/style.css`](src/style.css) | Projected label layout, interface icons, and responsive styling |
 | [`src/view-settings.ts`](src/view-settings.ts) | Display settings and their defaults |
-| [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP sky assets and the illustrated loading and fallback view |
+| [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP sky assets and the illustrated fallback view |
 | [`tests/`](tests/) | Unit tests: frame rotations, orbit integration against the measured velocities, binary positions against observation, Kepler’s laws, and formatting |
 | [`package.json`](package.json), [`package-lock.json`](package-lock.json), [`tsconfig.json`](tsconfig.json), [`vite.config.ts`](vite.config.ts) | Toolchain, locked dependency versions, type checking, and bundler configuration |
 

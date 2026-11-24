@@ -158,8 +158,13 @@ h1, h2, h3, p { margin: 0; }
   height: 100%;
 }
 .stage-image {
-  background: #050714 url('/galaxy.webp') center / cover no-repeat;
   opacity: .82;
+  visibility: hidden;
+}
+/* The illustrated galaxy appears only when the 3D renderer cannot run, so it never flashes during loading. */
+.is-fallback .stage-image {
+  background: #050714 url('/galaxy.webp') center / cover no-repeat;
+  visibility: visible;
 }
 #galaxy {
   display: block;
@@ -169,7 +174,6 @@ h1, h2, h3, p { margin: 0; }
 }
 #galaxy:active { cursor: grabbing; }
 .is-live #galaxy { opacity: 1; }
-.is-live .stage-image { visibility: hidden; }
 .stage-shade {
   pointer-events: none;
   background:
