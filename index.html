@@ -35,7 +35,6 @@
           <h1 id="view-title">Milky Way</h1>
           <p id="view-description"></p>
           <div class="body-key" id="body-key" hidden></div>
-          <div class="sky-coordinates" id="sky-coordinates" hidden></div>
         </div>
 
         <div class="annotations" id="annotations" aria-label="Galaxy and object labels">
@@ -64,23 +63,8 @@
           <div class="tour-track" aria-hidden="true"><span id="tour-progress"></span></div>
         </div>
 
-        <div class="timeline" id="timeline" hidden>
-          <div class="timeline-header">
-            <label for="time-scrubber"><span data-icon="clock"></span><span class="timeline-title">Simulation time</span></label>
-            <output id="timeline-time" for="time-scrubber">00:00.0</output>
-            <span class="timeline-epoch" id="timeline-epoch" title="One simulation second spans about 1.36 million years of galactic motion">Today</span>
-            <label class="marks-control" id="marks-control" hidden><input id="time-marks" type="checkbox" data-scene-control checked disabled /> Trail timestamps</label>
-          </div>
-          <input id="time-scrubber" type="range" min="0" max="60" step="0.1" value="0" data-scene-control disabled />
-          <div class="timeline-ticks" id="timeline-ticks" aria-hidden="true"></div>
-        </div>
-
         <div class="stage-tools">
-          <div class="view-controls" id="view-controls" aria-hidden="true"><span data-icon="mouse"></span><span class="desktop-controls">Drag to orbit <i></i> Scroll to zoom</span><span class="touch-controls">Swipe to orbit <i></i> Pinch to zoom</span><span class="sky-controls-hint">Drag to look around</span></div>
-          <div class="image-credits" id="image-credits" hidden>
-            <a id="panorama-credit" href="https://www.eso.org/public/images/eso0932a/">All-sky panorama © ESO/S. Brunier</a>
-            <a id="photo-credit" hidden></a>
-          </div>
+          <div class="view-controls" id="view-controls" aria-hidden="true"><span data-icon="mouse"></span><span class="desktop-controls">Drag to orbit <i></i> Scroll to zoom</span><span class="touch-controls">Swipe to orbit <i></i> Pinch to zoom</span></div>
           <button class="icon-button north-button" id="north-view" type="button" title="View from galactic north" aria-label="View from galactic north" data-scene-control disabled><span data-icon="orientation"></span><span>North view</span></button>
         </div>
       </section>
@@ -93,7 +77,6 @@
 
         <nav class="explorer-tabs" aria-label="Observatory panels">
           <button type="button" data-panel="systems" aria-pressed="true"><span data-icon="galaxy"></span> Systems</button>
-          <button type="button" data-panel="sky" aria-pressed="false"><span data-icon="telescope"></span> Sky atlas</button>
           <button type="button" data-panel="settings" aria-pressed="false"><span data-icon="sliders"></span> Settings</button>
         </nav>
         <div id="data-slot"></div>
@@ -129,16 +112,6 @@
         </section>
         </div>
 
-        <div class="sidebar-panel catalog-panel" id="panel-sky" hidden>
-          <p class="panel-note">Choose a galaxy to look toward its catalog position, as seen from the Sun today.</p>
-          <div class="catalog-list" id="catalog-list"></div>
-          <div class="range-field sky-zoom" id="sky-zoom-field" hidden>
-            <label for="sky-zoom">Field of view</label><output id="sky-zoom-value" for="sky-zoom">12°</output>
-            <input type="range" id="sky-zoom" min="3" max="60" step="0.5" value="12" data-scene-control disabled />
-          </div>
-          <details class="map-key"><summary>Milky Way map key</summary><ul id="arm-key"></ul></details>
-        </div>
-
         <div class="sidebar-panel settings-panel" id="panel-settings" hidden>
           <fieldset class="control-group">
             <legend>Motion</legend>
@@ -171,9 +144,8 @@
           <fieldset class="control-group">
             <legend>Sky and map layers</legend>
             <label class="check-field"><span>Spiral arm labels</span><input type="checkbox" data-setting="armLabels" data-scene-control checked disabled /></label>
-            <label class="check-field"><span>Deep-sky labels</span><input type="checkbox" data-setting="skyLabels" data-scene-control checked disabled /></label>
-            <label class="check-field"><span>All-sky photograph in atlas</span><input type="checkbox" data-setting="survey" data-scene-control checked disabled /></label>
-            <label class="check-field"><span>Telescope close-ups</span><input type="checkbox" data-setting="photographs" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Andromeda and Triangulum</span><input type="checkbox" data-setting="photographs" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Neighbor galaxy labels</span><input type="checkbox" data-setting="skyLabels" data-scene-control checked disabled /></label>
             <label class="check-field"><span>Background stars (decorative)</span><input type="checkbox" data-setting="stars" data-scene-control checked disabled /></label>
           </fieldset>
         </div>
@@ -194,7 +166,7 @@
       <p><strong>Time.</strong> One simulation second spans about 1.36 million years of galactic motion. The clock starts at the year 2000, and the trails show where each system came from before then.</p>
       <p><strong>Close-ups.</strong> Planets and companion stars move on ellipses in their measured orbital planes, starting from their positions in 2000. Their sizes and orbits are enlarged enormously and their motion is sped up so that you can see it. The Solar System’s spacing is compressed, and TRAPPIST-1’s orbits are drawn to scale with one another. TRAPPIST-1’s planet colors are for telling them apart.</p>
       <p><strong>The Galaxy.</strong> The disk turns clockwise as seen from galactic north. The arms near the Sun follow <a href="https://arxiv.org/abs/1910.03357">Reid et al.’s maser measurements</a>, and the far side is inferred. The spiral pattern turns at <a href="https://arxiv.org/abs/1905.08133">28 km/s per kiloparsec</a> and the bar at <a href="https://arxiv.org/abs/1608.07954">39</a>, so stars drift through the arms. Star colors follow temperature: blue-white young stars in the arms, golden old stars in the bar.</p>
-      <p><strong>The sky.</strong> The Sky atlas looks out from the Sun toward catalog positions, over <a href="https://www.eso.org/public/images/eso0932a/">ESO’s Milky Way panorama</a>. Several telescope portraits are infrared and shown in false color.</p>
+      <p><strong>Neighboring galaxies.</strong> Andromeda and Triangulum sit in their true directions as seen from the Sun, 2.5 and about 3 million light-years away. Their portraits are enlarged so that you can find them. Both are infrared images from NASA’s WISE mission, shown in false color. <a href="https://science.nasa.gov/photojournal/our-neighbor-andromeda/">Andromeda</a> and <a href="https://science.nasa.gov/photojournal/wise-spies-a-galactic-neighbor/">Triangulum</a>, NASA/JPL-Caltech/UCLA.</p>
       <div class="keyboard-help">
         <span><kbd>Space</kbd> Pause or play</span><span><kbd>1</kbd>–<kbd>4</kbd> Follow a system</span>
         <span><kbd>G</kbd> Galaxy overview</span><span><kbd>N</kbd> North view</span>

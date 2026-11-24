@@ -89,4 +89,27 @@ describe('guided tour', () => {
     })
     expect(chapters[0].time).toBe(0)
   })
+
+  const length = (index: number) => (chapters[index + 1]?.time ?? TOUR_DURATION) - chapters[index].time
+
+  test('visits every system once, in order, for about half a minute each', () => {
+    const visits = chapters.flatMap((chapter, index) => chapter.system >= 0 ? [{ system: chapter.system, index }] : [])
+    expect(visits.map(visit => visit.system)).toEqual(systems.map((_, index) => index))
+    for (const visit of visits) {
+      expect(length(visit.index)).toBeGreaterThanOrEqual(25)
+      expect(length(visit.index)).toBeLessThanOrEqual(35)
+    }
+  })
+
+  test('zooms back out to the Galaxy between systems, long enough for the music to fade', () => {
+    chapters.forEach((chapter, index) => {
+      if (chapter.system < 0) {
+        expect(length(index)).toBeGreaterThanOrEqual(6)
+        return
+      }
+      const next = chapters[(index + 1) % chapters.length]
+      expect(next.system).toBe(-1)
+    })
+    expect(chapters[0].system).toBe(-1)
+  })
 })

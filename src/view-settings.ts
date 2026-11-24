@@ -5,7 +5,6 @@ export interface ViewSettings {
   dust: number
   armLabels: boolean
   skyLabels: boolean
-  survey: boolean
   photographs: boolean
   stars: boolean
   trails: boolean
@@ -19,7 +18,6 @@ export const defaultViewSettings: ViewSettings = {
   dust: 100,
   armLabels: true,
   skyLabels: true,
-  survey: true,
   photographs: true,
   stars: true,
   trails: true,

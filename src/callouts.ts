@@ -12,12 +12,10 @@ export interface Rect {
   bottom: number
 }
 
-type CalloutKind = 'system' | 'body' | 'time' | 'arm' | 'scale' | 'sky'
-const INTERACTIVE: CalloutKind[] = ['system', 'sky']
+type CalloutKind = 'system' | 'body' | 'arm' | 'scale' | 'sky'
 
 export function createCallout(text: string, kind: CalloutKind, color?: string): Callout {
-  const interactive = INTERACTIVE.includes(kind)
-  const element = document.createElement(interactive ? 'button' : 'div')
+  const element = document.createElement(kind === 'system' ? 'button' : 'div')
   element.className = `annotation ${kind}-callout`
   element.hidden = true
   if (element instanceof HTMLButtonElement) element.type = 'button'
@@ -87,7 +85,7 @@ export function createCalloutLayout(camera: PerspectiveCamera, capacity: number)
     return true
   }
 
-  function place(tag: Callout, position: Vector3, below = false) {
+  function place(tag: Callout, position: Vector3) {
     const { element, caption } = tag
     if (!locate(position)) {
       element.hidden = true
@@ -96,7 +94,7 @@ export function createCalloutLayout(camera: PerspectiveCamera, capacity: number)
     const { x, y } = position
     const textWidth = (caption.textContent?.length ?? 0) * CHARACTER_WIDTH + 15
     const prefer = x >= width / 2 ? 1 : -1
-    const offset = below ? 19 : -TEXT_HEIGHT / 2
+    const offset = -TEXT_HEIGHT / 2
     if (trySide(prefer) || trySide(-prefer)) return
     element.hidden = true
 
