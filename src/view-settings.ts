@@ -7,6 +7,7 @@ export interface ViewSettings {
   skyLabels: boolean
   photographs: boolean
   stars: boolean
+  neighbors: boolean
   trails: boolean
   rings: boolean
 }
@@ -20,6 +21,7 @@ export const defaultViewSettings: ViewSettings = {
   skyLabels: true,
   photographs: true,
   stars: true,
+  neighbors: true,
   trails: true,
   rings: true,
 }

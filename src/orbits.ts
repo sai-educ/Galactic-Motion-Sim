@@ -1,6 +1,7 @@
 import {
-  AdditiveBlending, BufferAttribute, Color, CustomBlending, DoubleSide, GLSL3, InstancedBufferAttribute,
-  InstancedBufferGeometry, Mesh, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial, Vector2, Vector4,
+  AdditiveBlending, BufferAttribute, Color, CustomBlending, DataTexture, DoubleSide, FloatType, GLSL3,
+  InstancedBufferAttribute, InstancedBufferGeometry, Mesh, OneFactor, OneMinusSrcAlphaFactor, RGBAFormat,
+  ShaderMaterial, Vector2,
 } from 'three'
 import { TAU } from './astro'
 import { HARMONICS, VERTICAL_RATE } from './galactic-orbit'
@@ -12,7 +13,18 @@ import { EMPTY_ORBIT, SURFACES, type System } from './systems'
 const TRAIL_SAMPLES = 512
 // Shader time restarts at each epoch so fast inner orbits keep their precision for days.
 const EPOCH_SECONDS = 128
+// How a system's first body is weighted in the overview. The shaders read anything between 0.25 and 0.75 as a neighbor.
+const NEIGHBOR_WEIGHT = 0.5
 const wrap = (angle: number) => angle - TAU * Math.floor(angle / TAU)
+
+/** One row per system and one texel per harmonic, so the number of systems is not bound by the uniform limit. */
+function harmonicsTexture(systems: System[]) {
+  const terms = systems.flatMap(({ path }) => Array.from({ length: HARMONICS }, (_, k) =>
+    [path.radial[2 * k], path.radial[2 * k + 1], path.wobble[2 * k], path.wobble[2 * k + 1]])).flat()
+  const texture = new DataTexture(new Float32Array(terms), HARMONICS, systems.length, RGBAFormat, FloatType)
+  texture.needsUpdate = true
+  return texture
+}
 
 function instanceData(systems: System[]) {
   const path: number[] = []
@@ -42,7 +54,7 @@ function instanceData(systems: System[]) {
       outer.push(companion.radius, companion.rate, companion.phase, companion.eccentricity)
       outerP.push(...companion.p)
       outerQ.push(...companion.q)
-      visual.push(bodyIndex === 0 ? 1 : 0, index, body.size, body.glow)
+      visual.push(bodyIndex > 0 ? 0 : system.neighbor ? NEIGHBOR_WEIGHT : 1, index, body.size, body.glow)
       surface.push(body.surface ? SURFACES.indexOf(body.surface) + 1 : 0, body.spin ?? 0, wrap(instance++ * 2.13), 0)
       spinAxis.push(...(body.spinAxis ?? [0, 1, 0]))
       new Color(body.color).toArray(colors, colors.length)
@@ -109,11 +121,9 @@ export function createOrbits(systems: System[]) {
   const uniforms = {
     uTime: { value: 0 }, uTrailSeconds: { value: 9 }, uFocus: { value: -1 }, uSystemFrame: { value: false },
     uViewport: { value: new Vector2(1, 1) },
+    uNeighbors: { value: 1 },
     uSystemColors: { value: systems.map(system => new Color(system.color)) },
-    uHarmonics: {
-      value: systems.flatMap(({ path }) => Array.from({ length: HARMONICS }, (_, k) =>
-        new Vector4(path.radial[2 * k], path.radial[2 * k + 1], path.wobble[2 * k], path.wobble[2 * k + 1]))),
-    },
+    uHarmonics: { value: harmonicsTexture(systems) },
   }
   const trails = strip(TRAIL_SAMPLES)
   const stars = billboard()

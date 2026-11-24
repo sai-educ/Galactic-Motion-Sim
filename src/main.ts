@@ -2,10 +2,11 @@ import './style.css'
 import { LY_PER_KPC } from './astro'
 import { createCallout, type Callout } from './callouts'
 import { icon, mountIcons } from './icons'
+import { NEIGHBOR_GROUPS } from './neighbors'
 import { skyCatalog } from './sky-catalog'
 import { createSoundtrack } from './soundtrack'
 import { arms, RING_RADII_KPC } from './spiral-map'
-import { systems } from './systems'
+import { systems, type System } from './systems'
 import { formatEpoch, formatLightYears, formatTime } from './timeline'
 import { chapters, TOUR_DURATION } from './tour'
 import { defaultViewSettings, type ViewSettings } from './view-settings'
@@ -34,6 +35,7 @@ const qualityControl = element<HTMLSelectElement>('render-quality')
 const frameControl = element<HTMLSelectElement>('reference-frame')
 const dataCard = element('data-card')
 const panelButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-panel]')]
+const listButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-list]')]
 const panels = {
   systems: { title: 'Explore systems', element: element('panel-systems') },
   settings: { title: 'Settings', element: element('panel-settings') },
@@ -60,7 +62,8 @@ const compactStage = matchMedia('(max-width: 1180px)')
 const MUSIC_PREFERENCE = 'galactic-motion:music'
 const audioAsset = (name: string) => `${import.meta.env.BASE_URL}audio/${name}.mp3`
 const soundtrack = createSoundtrack({
-  themes: systems.map(system => audioAsset(system.id)),
+  // Only the featured systems have themes. The neighboring stars are visited in silence.
+  themes: systems.filter(system => !system.neighbor).map(system => audioAsset(system.id)),
   zooms: [audioAsset('zoom-1'), audioAsset('zoom-2')],
 })
 
@@ -74,6 +77,7 @@ let showLabels = true
 let viewSettings: ViewSettings = { ...defaultViewSettings }
 let simulator: ReturnType<typeof createSimulator> | undefined
 
+/** The button that selects each system: a card for a featured system, a chip for a neighboring star. */
 const cards: HTMLButtonElement[] = []
 const systemLabels: Callout[] = []
 const bodyLabels: Callout[][] = []
@@ -84,26 +88,50 @@ const ringLabels = RING_RADII_KPC.map(kpc => createCallout(
   `${kpc} kpc · ${formatLightYears(kpc * LY_PER_KPC)}`, 'scale', '#7fc3cf'))
 const skyLabels = skyCatalog.map(object => createCallout(object.name, 'sky', '#a4d5fd'))
 
-for (const [index, system] of systems.entries()) {
-  const card = document.createElement('button')
-  card.type = 'button'
-  card.className = 'system-card'
-  card.disabled = true
-  card.dataset.sceneControl = ''
-  card.setAttribute('aria-pressed', 'false')
-  card.style.setProperty('--system-color', system.color)
-  card.innerHTML = `
+const neighborRows = new Map(NEIGHBOR_GROUPS.map(group => {
+  const section = document.createElement('div')
+  section.className = 'neighbor-group'
+  const idea = document.createElement('p')
+  idea.className = 'neighbor-idea'
+  idea.innerHTML = `<strong>${group.title}</strong> ${group.idea}`
+  const row = document.createElement('div')
+  row.className = 'neighbor-chips'
+  section.append(idea, row)
+  element('neighbors-list').append(section)
+  return [group.id, row]
+}))
+
+function selector(system: System, index: number) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.disabled = true
+  button.dataset.sceneControl = ''
+  button.setAttribute('aria-pressed', 'false')
+  button.style.setProperty('--system-color', system.color)
+  button.addEventListener('click', () => selectManually(index))
+  if (system.neighbor) {
+    button.className = 'neighbor-chip'
+    button.title = system.description
+    button.innerHTML = `<i aria-hidden="true"></i>${system.name}`
+    neighborRows.get(system.neighbor.group)?.append(button)
+    return button
+  }
+  button.className = 'system-card'
+  button.innerHTML = `
     <span class="system-art" data-system="${system.id}" aria-hidden="true"><i></i><i></i><i></i></span>
     <span class="system-text"><strong>${system.name}</strong><small>${system.kind}</small></span>
     <kbd class="card-key" aria-hidden="true">${index + 1}</kbd>
     <span class="card-arrow">${icon('arrow')}</span>
   `
-  card.addEventListener('click', () => selectManually(index))
-  list.append(card)
-  cards.push(card)
+  list.append(button)
+  return button
+}
 
-  const label = createCallout(system.name, 'system', system.color)
-  label.element.title = `Follow ${system.name}`
+for (const [index, system] of systems.entries()) {
+  cards.push(selector(system, index))
+
+  const label = createCallout(system.name, system.neighbor ? 'neighbor' : 'system', system.color)
+  label.element.title = system.neighbor ? `${system.name}: ${system.description}` : `Follow ${system.name}`
   label.element.addEventListener('click', () => selectManually(index))
   annotations.append(label.element)
   systemLabels.push(label)
@@ -123,8 +151,18 @@ function setStatus(state: 'live' | 'paused' | 'unavailable', text: string) {
   element('status-text').textContent = text
 }
 
+/** Swaps the Systems panel between the featured systems and the neighboring stars. */
+function showList(neighbors: boolean) {
+  list.hidden = neighbors
+  element('neighbors-list').hidden = !neighbors
+  for (const button of listButtons) button.setAttribute('aria-pressed', String((button.dataset.list === 'neighbors') === neighbors))
+}
+
+/** The theme to play for a view. Neighboring stars and the Galaxy views have none. */
+const themeOf = (index: number) => systems[index]?.neighbor ? -1 : index
+
 function showView(index: number, north = false) {
-  if (simulator) soundtrack.select(index)
+  if (simulator) soundtrack.select(themeOf(index))
   simulator?.focus(index, true, north)
   updateView(index, north)
 }
@@ -133,13 +171,18 @@ function updateView(index: number, north = false) {
   active = index
   const system = systems[index]
   stage.classList.toggle('is-focused', Boolean(system))
-  viewKind.textContent = system?.kind ?? (north ? 'Galactic north · Clockwise' : 'Galaxy overview')
+  const group = NEIGHBOR_GROUPS.find(candidate => candidate.id === system?.neighbor?.group)
+  viewKind.textContent = system
+    ? (group ? `${group.title} · ${system.kind}` : system.kind)
+    : (north ? 'Galactic north · Clockwise' : 'Galaxy overview')
   viewTitle.textContent = system?.name ?? 'Milky Way'
   viewDescription.textContent = system?.description ?? (north ? NORTH_DESCRIPTION : OVERVIEW_DESCRIPTION)
   bodyKey.hidden = !system || !showLabels
   bodyKey.innerHTML = system?.bodies.map(body =>
     `<span><i style="--body-color:${body.color}"></i>${body.name}</span>`).join('') ?? ''
   for (let i = 0; i < cards.length; i++) cards[i].setAttribute('aria-pressed', String(index === i))
+  // Whichever star the camera follows, its entry is on show in the sidebar.
+  if (system) showList(Boolean(system.neighbor))
   overview.classList.toggle('is-current', index < 0 && !north)
   northView.classList.toggle('is-current', north)
   showData(index)
@@ -329,6 +372,7 @@ function unavailable(message: string) {
 rate.addEventListener('input', applyRate)
 trail.addEventListener('input', applyTrail)
 for (const button of panelButtons) button.addEventListener('click', () => setPanel(button.dataset.panel as Panel))
+for (const button of listButtons) button.addEventListener('click', () => showList(button.dataset.list === 'neighbors'))
 for (const input of document.querySelectorAll<HTMLInputElement>('[data-setting]')) {
   input.addEventListener('change', () => {
     viewSettings = { ...viewSettings, [input.dataset.setting!]: input.checked }
@@ -392,7 +436,8 @@ const shortcuts: Record<string, () => void> = {
   l: toggleLabels,
   m: () => setMusic(soundtrack.muted),
   t: () => (touring ? stopTour() : startTour()),
-  ...Object.fromEntries(systems.map((_, index) => [String(index + 1), () => selectManually(index)])),
+  ...Object.fromEntries(systems.flatMap((system, index) =>
+    system.neighbor ? [] : [[String(index + 1), () => selectManually(index)]])),
 }
 
 document.addEventListener('keydown', (event) => {
@@ -443,7 +488,7 @@ async function initialize() {
       onContextLost() {
         unavailable('The 3D renderer lost its connection. Reload to restart the simulation.')
       },
-      onArrive: index => soundtrack.arrive(index),
+      onArrive: index => soundtrack.arrive(themeOf(index)),
     })
     simulator.setRate(rate.valueAsNumber)
     updateView(-1)

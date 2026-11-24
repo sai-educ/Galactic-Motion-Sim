@@ -3,8 +3,11 @@ import {
   SOLAR_RADIUS_KPC, TAU, UNITS_PER_KMS, UNITS_PER_KPC, VERTICAL_FREQUENCY, type Vec3,
 } from './astro'
 
-/** Fourier terms kept for each orbit. Eight reproduce even TRAPPIST-1’s stretched orbit to a fraction of a light-year. */
-export const HARMONICS = 8
+/**
+ * Fourier terms kept for each orbit. Twenty-four place even Arcturus, whose orbit is the most stretched one here,
+ * to within a ten-thousandth of a light-year, which the closest-approach figures need.
+ */
+export const HARMONICS = 24
 
 /**
  * A star's path around the Galaxy. Motion in the plane is integrated in a potential with a flat
@@ -117,12 +120,18 @@ export function galacticOrbit({ l, b, distance, velocity }: Kinematics): Galacti
   const towardCenter = kpc * cosLatitude * Math.cos(l * RAD)
   const alongRotation = kpc * cosLatitude * Math.sin(l * RAD)
   const heightKpc = SOLAR_HEIGHT_KPC + kpc * Math.sin(b * RAD)
+  // The velocity is measured along the Sun's axes. Seen from the Galactic Center, the star's own outward
+  // direction is turned slightly from the Sun's, so its radial and turning speeds mix the two components.
+  const inward = SOLAR_RADIUS_KPC - towardCenter
+  const radius = Math.hypot(inward, alongRotation)
+  const towardCenterSpeed = velocity[0] + SOLAR_PECULIAR_KMS[0]
+  const rotationSpeed = CIRCULAR_SPEED_KMS + velocity[1] + SOLAR_PECULIAR_KMS[1]
   const start: PlanarState = {
-    radius: Math.hypot(SOLAR_RADIUS_KPC - towardCenter, alongRotation),
-    radialSpeed: -(velocity[0] + SOLAR_PECULIAR_KMS[0]),
-    azimuth: SOLAR_AZIMUTH + Math.atan2(alongRotation, SOLAR_RADIUS_KPC - towardCenter),
+    radius,
+    radialSpeed: (rotationSpeed * alongRotation - towardCenterSpeed * inward) / radius,
+    azimuth: SOLAR_AZIMUTH + Math.atan2(alongRotation, inward),
   }
-  const momentum = start.radius * (CIRCULAR_SPEED_KMS + velocity[1] + SOLAR_PECULIAR_KMS[1])
+  const momentum = towardCenterSpeed * alongRotation + rotationSpeed * inward
   const period = radialPeriod(start, momentum)
 
   const radii: number[] = []
@@ -175,6 +184,20 @@ export function sampleGalacticOrbit(orbit: GalacticOrbit, time: number, position
   if (!velocity) return
   const along = radius * turnRate
   velocity.set(radialSpeed * cos - along * sin, orbit.height * VERTICAL_RATE * Math.cos(vertical), radialSpeed * sin + along * cos)
+}
+
+const RANGE_SAMPLES = 720
+
+/** Nearest and farthest distances from the Galactic Center along an orbit, in scene units. */
+export function radialRange(orbit: GalacticOrbit): { inner: number, outer: number } {
+  const radii = Array.from({ length: RANGE_SAMPLES }, (_, sample) => {
+    const phase = TAU * sample / RANGE_SAMPLES
+    return orbit.radial.reduce((radius, coefficient, index) => {
+      const angle = (Math.floor(index / 2) + 1) * phase
+      return radius + coefficient * (index % 2 === 0 ? Math.cos(angle) : Math.sin(angle))
+    }, orbit.meanRadius)
+  })
+  return { inner: Math.min(...radii), outer: Math.max(...radii) }
 }
 
 /** Converts a scene speed (units per simulation second) back to km/s. */

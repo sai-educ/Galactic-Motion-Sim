@@ -2,6 +2,9 @@ import { KEPLER_ITERATIONS } from './astro'
 import { HARMONICS, VERTICAL_RATE } from './galactic-orbit'
 import { systems } from './systems'
 
+// Every neighboring star is the same small dot in the overview, whatever size it has in its own close-up.
+const QUIET_SIZE = 7
+
 // Shared by the trail, star, and planet programs. The CPU evaluates the same closed forms
 // in galactic-orbit.ts and systems.ts for the camera and the labels.
 export const motion = /* glsl */ `
@@ -14,26 +17,27 @@ export const motion = /* glsl */ `
   in vec4 aOuter;
   in vec3 aOuterP;
   in vec3 aOuterQ;
-  in vec4 aVisual;    // marks the system's primary, system index, size, glow
+  in vec4 aVisual;    // overview weight (1 featured primary, 0.5 neighbor star, 0 other bodies), system index, size, glow
   in vec3 aColor;
   uniform float uTime;
   uniform float uFocus;
   uniform bool uSystemFrame;
   uniform float uTrailSeconds;
   uniform vec2 uViewport;
+  uniform float uNeighbors;
   uniform vec3 uSystemColors[SYSTEMS];
-  // Per system: cosine and sine terms of the radius, then of the azimuth wobble, for each harmonic.
-  uniform vec4 uHarmonics[SYSTEMS * ${HARMONICS}];
+  // One row per system and one texel per harmonic: cosine and sine terms of the radius, then of the azimuth wobble.
+  uniform sampler2D uHarmonics;
   const float TAU = 6.283185307;
 
   vec3 systemPosition(float t) {
-    int first = int(aVisual.y + 0.5) * ${HARMONICS};
+    int system = int(aVisual.y + 0.5);
     float phase = aCycle.z * t + aCycle.y;
     float radius = aPath.x;
     float theta = aPath.y + aCycle.x * t;
     for (int k = 0; k < ${HARMONICS}; k++) {
       float angle = float(k + 1) * phase;
-      vec4 term = uHarmonics[first + k];
+      vec4 term = texelFetch(uHarmonics, ivec2(k, system), 0);
       radius += term.x * cos(angle) + term.y * sin(angle);
       theta += term.z * cos(angle) + term.w * sin(angle);
     }
@@ -52,10 +56,14 @@ export const motion = /* glsl */ `
 
   bool focused() { return uFocus >= 0.0 && abs(aVisual.y - uFocus) < 0.25; }
 
+  // A neighboring star seen from the overview, where it is drawn smaller and fainter than a featured system.
+  bool quiet() { return uFocus < 0.0 && aVisual.x > 0.25 && aVisual.x < 0.75; }
+
   // The overview draws one marker per system at its center of mass. A close-up draws only its own bodies.
   float prominence() {
-    if (uFocus < 0.0) return aVisual.x > 0.5 ? 0.86 : 0.0;
-    return focused() ? 1.0 : 0.0;
+    if (uFocus >= 0.0) return focused() ? 1.0 : 0.0;
+    if (quiet()) return 0.5 * uNeighbors;
+    return aVisual.x > 0.75 ? 0.86 : 0.0;
   }
 
   vec3 bodyPosition(float t) {
@@ -90,7 +98,7 @@ export const ribbonVertex = motion + /* glsl */ `
     vAge = position.x;
     vEdge = position.y;
     vProminence = prominence();
-    vStar = smoothstep(7.5, 13.0, aVisual.z);
+    vStar = quiet() ? 0.0 : smoothstep(7.5, 13.0, aVisual.z);
     vColor = displayColor();
     if (vProminence == 0.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -135,7 +143,7 @@ export const starVertex = motion + /* glsl */ `
   void main() {
     vPoint = position.xy;
     vColor = displayColor();
-    vGlow = aVisual.w;
+    vGlow = aVisual.w * (quiet() ? 0.6 : 1.0);
     vProminence = prominence();
     if (vProminence == 0.0 || aSurface.x > 0.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -144,7 +152,7 @@ export const starVertex = motion + /* glsl */ `
     vec4 center = modelViewMatrix * vec4(bodyPosition(uTime), 1.0);
     vec4 clip = projectionMatrix * center;
     vCloseup = smoothstep(0.9, 1.0, vProminence);
-    float size = aVisual.z * mix(1.0, 1.62, vCloseup) * bodyScale(-center.z);
+    float size = (quiet() ? ${QUIET_SIZE.toFixed(1)} : aVisual.z) * mix(1.0, 1.62, vCloseup) * bodyScale(-center.z);
     clip.xy += position.xy * size * 2.0 / uViewport * clip.w;
     gl_Position = clip;
   }

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest'
+import { MYR_PER_SECOND } from '../src/astro'
 import { SimulationClock } from '../src/clock'
 import { armRadius, arms, BAR_SPEED, PATTERN_SPEED } from '../src/spiral-map'
-import { formatEpoch, formatLightYears, formatTime } from '../src/timeline'
+import { formatEpoch, formatLightYears, formatTime, formatWhen } from '../src/timeline'
 import { chapters, TOUR_DURATION } from '../src/tour'
 import { systems } from '../src/systems'
 
@@ -92,9 +93,11 @@ describe('guided tour', () => {
 
   const length = (index: number) => (chapters[index + 1]?.time ?? TOUR_DURATION) - chapters[index].time
 
-  test('visits every system once, in order, for about half a minute each', () => {
+  test('visits each featured system and then one passing star, in order, for about half a minute each', () => {
     const visits = chapters.flatMap((chapter, index) => chapter.system >= 0 ? [{ system: chapter.system, index }] : [])
-    expect(visits.map(visit => visit.system)).toEqual(systems.map((_, index) => index))
+    const featured = systems.flatMap((system, index) => system.neighbor ? [] : [index])
+    const arcturus = systems.findIndex(system => system.id === 'arcturus')
+    expect(visits.map(visit => visit.system)).toEqual([...featured, arcturus])
     for (const visit of visits) {
       expect(length(visit.index)).toBeGreaterThanOrEqual(25)
       expect(length(visit.index)).toBeLessThanOrEqual(35)
@@ -111,5 +114,24 @@ describe('guided tour', () => {
       expect(next.system).toBe(-1)
     })
     expect(chapters[0].system).toBe(-1)
+  })
+})
+
+describe('formatWhen', () => {
+  const seconds = (years: number) => years / (MYR_PER_SECOND * 1e6)
+
+  test('names the present', () => {
+    expect(formatWhen(0)).toBe('Today')
+  })
+
+  test('rounds spans under a million years to two significant figures', () => {
+    expect(formatWhen(seconds(9_790))).toBe('9,800 years from now')
+    expect(formatWhen(seconds(-78_900))).toBe('79,000 years ago')
+    expect(formatWhen(seconds(294_400))).toBe('290,000 years from now')
+  })
+
+  test('gives longer spans in millions of years', () => {
+    expect(formatWhen(seconds(1_290_200))).toBe('1.29 million years from now')
+    expect(formatWhen(seconds(-2_500_000))).toBe('2.50 million years ago')
   })
 })
