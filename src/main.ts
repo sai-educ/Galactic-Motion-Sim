@@ -384,6 +384,7 @@ function unavailable(message: string) {
   simulator = undefined
   stopTour()
   stage.classList.remove('is-live')
+  stage.classList.add('is-fallback')
   element('timeline').hidden = true
   element('fps-counter').hidden = true
   element('image-credits').hidden = true
