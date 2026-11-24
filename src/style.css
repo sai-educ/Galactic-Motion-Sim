@@ -296,7 +296,19 @@ h1 {
   transform-origin: right;
 }
 
-.body-callout { pointer-events: none; }
+/* Planet and star tags ease in and out through --reveal, set each frame by the simulator. */
+.body-callout { pointer-events: none; opacity: var(--reveal, 1); }
+.body-callout .annotation-name { translate: 0 calc((1 - var(--reveal, 1)) * 6px); }
+/* Pinned tags never move aside: one behind a nearer tag dims, and the nearer tag brightens. */
+.body-callout > * { transition: opacity .35s ease, filter .35s ease; }
+.body-callout[data-layer="behind"] > * { opacity: .32; }
+.body-callout[data-layer="front"] > * { filter: brightness(1.3); }
+/* Other tags fade in whenever they appear, instead of popping in. */
+@keyframes tag-in { from { opacity: 0; } }
+.annotation:not(.body-callout) { animation: tag-in .6s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .body-callout .annotation-name { translate: none; }
+}
 /* A body is its own marker, so its tag only needs the leader line. */
 .body-callout .locator { display: none; }
 .annotation :is(.callout-leader, .callout-leader + .annotation-name) {
