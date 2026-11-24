@@ -1,6 +1,6 @@
 # Galactic Motion
 
-Galactic Motion is a browser-based 3D explorer of the Milky Way. Follow the Solar System, Alpha Centauri, Sirius, and TRAPPIST-1 around the galactic center on orbits computed from their measured positions and velocities, watch their planets and companion stars trace helices, or switch to the Sky atlas to look outward from the Sun.
+Galactic Motion is a browser-based 3D explorer of the Milky Way. Follow the Solar System, Alpha Centauri, Sirius, and TRAPPIST-1 around the galactic center on orbits computed from their measured positions and velocities, and watch their planets and companion stars trace helices.
 
 ![Galactic Motion’s Milky Way overview with labeled spiral arms, the simulation timeline, and the featured star systems sidebar](docs/media/milky-way-overview.webp)
 
@@ -37,15 +37,12 @@ Gattupalli, S., & Chakravarty, P. (2025). *Prompting the Universe: AI-Generated 
 | Spiral arms near the Sun | Fitted to maser distances. The far side of the Galaxy is inferred. |
 | Star colors | Computed from temperature. Planet surfaces are procedural, and TRAPPIST-1’s planet colors are labels. |
 
-## Which Milky Way am I seeing?
-
-The **3D disk** and the **photographic band** are two views of the same galaxy. The wide, pale band with dark streaks in the Sky atlas comes from ESO’s 360° photograph of the sky **as seen from Earth inside the Milky Way**. The pale light is the combined light of the disk’s stars, and the bright central region is the galactic bulge. Dark lanes come from foreground dust absorbing starlight. [ESO’s Milky Way panorama](https://www.eso.org/public/images/eso0932a/)
+## What each view shows
 
 | View | What the camera shows | What appears behind it |
 | --- | --- | --- |
-| Galaxy overview and North view | The modeled 3D disk, central bar, named arms, distance rings, and one marker and trail for each system | A dark sky, optional decorative star points, and optional telescope portraits of more distant galaxies |
+| Galaxy overview and North view | The modeled 3D disk, central bar, named arms, distance rings, and one marker and trail for each system | A dark sky, optional decorative star points, and enlarged portraits of the Andromeda and Triangulum galaxies in their true directions |
 | System close-up | A moving camera follows one system’s center of mass while its planets or companion stars trace their paths | The same modeled disk and background layers, dimmed |
-| Sky atlas | A catalog direction as seen from the Sun today | The optional ESO sky photograph and an optional enlarged telescope portrait of the selected object |
 | Static preview | An illustrated galaxy image when WebGL 2 is unavailable or the renderer stops. While the renderer loads, the stage stays dark. | The packaged preview image |
 
 ## Run locally
@@ -76,11 +73,10 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 - **Music** or **M** turns the soundtrack on or off, and the choice is remembered. Flying in from the Galaxy to a system plays one of two swells, never the same one twice in a row, then eases into that system’s theme, which loops without a gap. Choosing another system keeps the current theme playing during the flight, then crossfades to the new one without a swell. Leaving the systems fades the music out.
 - The **data card** beside a tracked system lists a few facts and four live figures: distance from the Galactic Center, height above the disk, speed around the Galaxy, and distance from the Sun.
 - **Galaxy overview** or **G** returns to the oblique view. **North view** or **N** looks down onto the disk from galactic north, where clockwise rotation is apparent.
-- **Labels** or **L** toggles projected names for systems, bodies, the galactic map, and deep-sky objects. Separate arm and deep-sky label switches appear in **Settings**. Labels move aside or disappear when they would overlap each other or the interface panels.
-- **Guided tour** or **T** visits each system with a short narration and loops every 56 seconds. Interacting with the scene or choosing a system manually returns the camera to free roam.
-- **Sky atlas** points the camera toward an object’s catalog coordinates. Drag to look around, use the **Field of view** slider, the scroll wheel, or a trackpad pinch to zoom, and open **Milky Way map key** for the full list of arm names.
-- **Pause simulation** or **Space** freezes the simulation clock while leaving the camera available. Keyboard shortcuts yield to text fields, menus, and the About dialog. If reduced motion is enabled at startup, playback starts paused and camera transitions snap to their destinations.
-- **Reset simulation** restores the timer and scrubber, time scale, trail length, and overview framing. Display settings are independent of the simulation reset.
+- **Labels** or **L** toggles projected names for systems, bodies, the galactic map, and the two neighboring galaxies. Separate arm and neighbor-galaxy label switches appear in **Settings**. Labels move aside or disappear when they would overlap each other or the interface panels.
+- **Guided tour** or **T** starts at the Galaxy overview, then flies into each system in turn with its swell and theme, stays about 30 seconds while the cinematic camera moves around it, and zooms back out to the Galaxy, with its music fading, before the next. Each stop has a short narration, and the tour loops every 164 seconds. Interacting with the scene or choosing a system manually returns the camera to free roam.
+- **Pause simulation** or **Space** eases the simulation clock to a stop and fades the music out, while leaving the camera available. Resuming eases the clock back up to speed and fades the music back in. Keyboard shortcuts yield to text fields, menus, and the About dialog. If reduced motion is enabled at startup, playback starts paused and camera transitions snap to their destinations.
+- **Reset simulation** restores the clock, time scale, trail length, and overview framing. Display settings are independent of the simulation reset.
 
 ### Simulation controls
 
@@ -88,10 +84,8 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 | --- | --- | --- |
 | Time scale | 0.25× | Advances the simulation clock at 0.25× to 4× in 0.25× steps |
 | Trail length | 9 seconds | Changes the sampled history window from 2 to 20 simulation seconds, or about 3 to 27 million years |
-| Simulation time | 00:00.0 | Scrubs in tenths of a simulation second and shows the matching span of galactic time. Seeking pauses playback and ends a guided tour. The range starts at 60 seconds and expands in 60-second increments as playback reaches its end. |
-| Trail timestamps | On | In a tracked system’s galactic frame, marks earlier times along its path. Negative timestamps are positions before the year 2000. |
 | Trail reference frame | Galactic path | **Galactic path** includes the system’s travel around the Milky Way. **System-centered orbits** holds the system’s center of mass fixed, which shows the true ellipses. |
-| Orbit trails | On | Shows or hides the ribbons and their time guides. The bodies continue moving. |
+| Orbit trails | On | Shows or hides the ribbons. The bodies continue moving. |
 | Distance rings | On | Shows or hides rings 5, 10, and 15 kiloparsecs from the center in overview and North view |
 
 ### Visual settings
@@ -102,11 +96,9 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 | Disk glow and dust | 100% | Scales the brightness of the disk’s diffuse light and core glow |
 | Render quality | Auto | Chooses adaptive resolution, Performance, or High detail |
 | Spiral arm labels | On | Shows named structures when viewing the full modeled disk |
-| Deep-sky labels | On | Shows names for visible catalog objects |
-| All-sky photograph in atlas | On | Shows the ESO panorama when an atlas object is selected |
-| Telescope close-ups | On | Shows enlarged galaxy portraits in the atlas and portraits of distant galaxies in model views |
+| Neighbor galaxy labels | On | Shows the names of Andromeda and Triangulum |
+| Andromeda and Triangulum | On | Draws enlarged portraits of the two galaxies at their catalog directions |
 | Background stars (decorative) | On | Draws procedural star points behind the modeled disk |
-| Field of view | Object-specific | Changes the atlas camera’s vertical field of view from 3° to 60° |
 
 The FPS counter in the upper right reports measured animation frames per second, independently of the simulation’s 120 Hz clock.
 
@@ -117,13 +109,13 @@ The FPS counter in the upper right reports measured animation frames per second,
 | TypeScript 5.9 | Strictly typed application code, compiled for ES2022 with bundler module resolution |
 | Vite 8 and Rolldown | Development server, production bundling, and asset processing. The 3D simulator loads dynamically, and Three.js core is split into its own chunk. |
 | Three.js r184 | WebGL renderer, scene graph, cameras, matrices, instanced geometry, texture loading, and built-in post-processing |
-| WebGL 2 and GLSL ES 3.00 | GPU evaluation of galactic and Keplerian orbits, star motion, the disk’s diffuse light, planet surfaces, and sky-image projection |
+| WebGL 2 and GLSL ES 3.00 | GPU evaluation of galactic and Keplerian orbits, star motion, the disk’s diffuse light, and planet surfaces |
 | `OrbitControls` | Drag, wheel, and touch camera input with damping, a movable target, and scene-dependent zoom behavior |
 | `EffectComposer`, `RenderPass`, `UnrealBloomPass`, `SMAAPass`, `OutputPass` | Render the HDR scene, diffuse bright regions, smooth edges, and apply ACES filmic tone mapping with sRGB output |
-| HTML, CSS, native DOM events and ranges | Responsive controls, accessible buttons and settings, an About dialog, projected labels, the time scrubber, and viewport overlays |
+| HTML, CSS, native DOM events and ranges | Responsive controls, accessible buttons and settings, an About dialog, projected labels, and viewport overlays |
 | Fontsource, DM Sans and Space Grotesk | Self-hosted Latin-subset variable fonts for the interface |
-| WebP | Local, compressed sky photographs, telescope portraits, and the static preview |
-| OpenAI ImageGen | Created the illustrated fallback image during development. The atlas uses the credited observations below. |
+| WebP | Local, compressed galaxy portraits and the static preview |
+| OpenAI ImageGen | Created the illustrated fallback image during development. The galaxy portraits are the credited observations below. |
 | Suno | Generated the four system themes and the two zoom swells in [`public/audio/`](public/audio/) |
 | Web Audio API | Eased fades, gapless theme loops, and crossfades, through a pool of media elements unlocked by the first click or key press |
 | Vitest | Unit tests for the orbit integration, coordinate frames, orbital elements, timing, music cues, and camera shots |
@@ -136,9 +128,9 @@ The FPS counter in the upper right reports measured animation frames per second,
 flowchart LR
     UI[Playback and display controls] --> Clock[Simulation clock]
     UI --> Camera[Camera and view state]
-    Clock --> CPU[System positions and trail timestamps]
+    Clock --> CPU[System positions]
     Clock --> GPU[Body, disk and ribbon shaders]
-    Catalog[Arm data and sky catalog] --> CPU
+    Catalog[Arm data and galaxy catalog] --> CPU
     Catalog --> GPU
     Camera --> Renderer[Three.js scene and post-processing]
     GPU --> Renderer
@@ -211,22 +203,25 @@ The GPU draws one instanced ribbon mesh, one instanced star mesh, and one instan
 
 Every 128 simulation seconds, the renderer moves the shader’s time origin forward and rebases its phase attributes. That keeps the GPU time values small while the UI and CPU positions continue using absolute simulation time. Seeking backwards also updates the shader’s time origin.
 
-In the system-centered view, the selected system’s past center of mass is subtracted and its current one is added. The ribbons then show the ellipses themselves. Single orbits are capped at one revolution in this view to limit brightness from overlapping loops. Up to four projected timestamps mark the center of mass’s past positions in the galactic frame, along a dashed guide where no star sits at the center.
+In the system-centered view, the selected system’s past center of mass is subtracted and its current one is added. The ribbons then show the ellipses themselves. Single orbits are capped at one revolution in this view to limit brightness from overlapping loops.
 
 ### Camera and tour
 
-The simulation camera uses a perspective projection and damped orbit controls. During system tracking, the CPU evaluates the center of mass with the same series as the GPU and moves the camera with it. The camera pivots on a point slightly behind the system so that the trail fills the frame, and that offset shrinks as the camera closes in. The camera also turns with the system’s direction of travel, so the trail keeps its place in the frame however far the clock runs or is scrubbed. Camera transitions ease over approximately 1.55 seconds, and the user can interrupt a model-view transition by interacting with the canvas.
+The simulation camera uses a perspective projection and damped orbit controls. During system tracking, the CPU evaluates the center of mass with the same series as the GPU and moves the camera with it. The camera pivots on a point slightly behind the system so that the trail fills the frame, and that offset shrinks as the camera closes in. The camera also turns with the system’s direction of travel, so the trail keeps its place in the frame however far the clock runs. Camera flights use a quintic ease: 3.5 seconds into a system or back out to the Galaxy, 3.8 seconds between two systems with a pull-back midway. The user can interrupt a flight by interacting with the canvas.
 
 | Guided tour time | Camera target |
 | --- | --- |
-| 0–8 seconds | Milky Way overview |
-| 8–18 seconds | Solar System |
-| 18–27 seconds | Alpha Centauri |
-| 27–35 seconds | Sirius |
-| 35–44 seconds | TRAPPIST-1 |
-| 44–56 seconds | Return to the overview |
+| 0–6 seconds | Milky Way overview |
+| 6–36 seconds | Solar System |
+| 36–44 seconds | Back out to the Galaxy |
+| 44–74 seconds | Alpha Centauri |
+| 74–82 seconds | Back out to the Galaxy |
+| 82–112 seconds | Sirius |
+| 112–120 seconds | Back out to the Galaxy |
+| 120–150 seconds | TRAPPIST-1 |
+| 150–164 seconds | Return to the overview |
 
-The tour runs on camera time. Changing simulation speed scales the orbits and trail clock while the tour keeps its camera pacing. Pausing the simulation holds the tour. The Sky atlas switches to a near-Sun viewing direction and changes the camera’s vertical field of view for zoom.
+The tour runs on camera time. Changing simulation speed scales the orbits and trail clock while the tour keeps its camera pacing. Pausing the simulation holds the tour.
 
 ### Labels and render quality
 
@@ -236,31 +231,23 @@ Auto quality starts with a budget of roughly 1.75 million render pixels and moni
 
 HDR-capable WebGL 2 devices use floating-point render targets for bloom and subpixel morphological antialiasing (SMAA). The compatible fallback uses an 8-bit render target. If the WebGL context cannot start or is lost, the app displays the static preview and disables the simulation controls.
 
-## Sky atlas data and imagery
+## Neighboring galaxies
 
-The catalog stores ICRS right ascension and declination in degrees, a display name, an approximate distance, a default field of view, an image aspect ratio, the kind of light each portrait records, and image credits. The coordinate conversion rotates each equatorial unit vector into the IAU galactic frame. The renderer then expresses that direction in the app’s `XZ` disk and `+Y` north convention. The atlas shows the sky as it is today, whatever the simulation clock reads. [NASA/IPAC coordinate lookup](https://irsa.ipac.caltech.edu/applications/Lookup/) · [CDS SIMBAD](https://simbad.cds.unistra.fr/simbad/)
+Andromeda and Triangulum are the two other large spirals of the Local Group. The catalog stores each one’s ICRS right ascension and declination in degrees. The coordinate conversion rotates that equatorial unit vector into the IAU galactic frame, and the renderer expresses the direction in the app’s `XZ` disk and `+Y` north convention. The portraits sit on a sphere centered on the camera, so they keep their direction from every viewpoint, as objects millions of light-years away do. They show the sky as it is today, whatever the simulation clock reads. [NASA/IPAC coordinate lookup](https://irsa.ipac.caltech.edu/applications/Lookup/) · [CDS SIMBAD](https://simbad.cds.unistra.fr/simbad/)
 
 | Object | Catalog ID | Approximate distance | Image credit |
 | --- | --- | --- | --- |
 | Andromeda Galaxy | M31 | 2.5 million light-years | Infrared, false color. NASA/JPL-Caltech/UCLA. [WISE portrait](https://science.nasa.gov/photojournal/our-neighbor-andromeda/) |
 | Triangulum Galaxy | M33 | 3 million light-years | Infrared, false color. NASA/JPL-Caltech/UCLA. [WISE portrait](https://science.nasa.gov/photojournal/wise-spies-a-galactic-neighbor/) · [Distance](https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-33/) |
-| Large Magellanic Cloud | LMC | 160,000 light-years | Infrared, false color. NASA/JPL-Caltech/STScI. [Spitzer portrait](https://science.nasa.gov/photojournal/our-chaotic-neighbor/) · [Distance](https://science.nasa.gov/earth/earth-observatory/the-galaxy-next-door/) |
-| Small Magellanic Cloud | SMC | 200,000 light-years | Infrared, false color. NASA/JPL-Caltech/UCLA. [WISE portrait](https://science.nasa.gov/photojournal/wises-view-of-a-wispy-cloud/) |
-| Bode’s Galaxy | M81 | 12 million light-years | Infrared, visible, and ultraviolet, false color. NASA/JPL-Caltech/ESA/Harvard-Smithsonian CfA. [Multi-wavelength portrait](https://science.nasa.gov/photojournal/m81-galaxy-is-pretty-in-pink/) |
-| Sombrero Galaxy | M104 | 28 million light-years | Visible light. NASA, and the Hubble Heritage Team (STScI/AURA). [Hubble portrait](https://science.nasa.gov/asset/hubble/sombrero-galaxy/) |
 
-The atlas maps **ESO/S. Brunier**’s photographic panorama to the inside of a camera-centered sphere. A small rotation registers the photograph against Andromeda, Sirius, Canopus, and the Magellanic Clouds. The shader then converts each sky direction into longitude and latitude texture coordinates. The panorama is resized and reprojected here. [Original ESO panorama](https://www.eso.org/public/images/eso0932a/) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-
-The Magellanic Clouds appear in the Sky atlas. The four more distant galaxies also appear in model views at their catalog directions.
-
-Telescope portraits are center-cropped, resized, and drawn as edge-blended billboards with illustrative sizes and brightness. The atlas masks the wider photograph around the selected portrait to avoid showing a second image of the same target. To see the object’s surroundings in the photographic sky, turn off **Telescope close-ups** and leave **All-sky photograph in atlas** enabled.
+The portraits are center-cropped, resized, and drawn as edge-blended billboards. Their sizes and brightness are illustrative: each is drawn larger than the galaxy appears in the real sky so that it can be found.
 
 ## Source layout
 
 | File | Responsibility |
 | --- | --- |
-| [`index.html`](index.html) | Viewport, systems panel, atlas catalog, settings, keyboard help, and static fallback layout |
-| [`src/main.ts`](src/main.ts) | DOM setup, controls, keyboard shortcuts, the data card, guided tour, catalog navigation, image credits, and WebGL status |
+| [`index.html`](index.html) | Viewport, systems panel, settings, keyboard help, and static fallback layout |
+| [`src/main.ts`](src/main.ts) | DOM setup, controls, keyboard shortcuts, the data card, guided tour, and WebGL status |
 | [`src/simulator.ts`](src/simulator.ts) | Scene orchestration, camera transitions, render pipeline, label updates, live telemetry, FPS measurement, and quality adaptation |
 | [`src/astro.ts`](src/astro.ts) | Physical constants, scene units, reference-frame rotations, Kepler’s equation, and black-body colors |
 | [`src/galactic-orbit.ts`](src/galactic-orbit.ts) | Orbit integration from measured kinematics, the Fourier representation, and CPU sampling |
@@ -268,18 +255,18 @@ Telescope portraits are center-cropped, resized, and drawn as edge-blended billb
 | [`src/orbits.ts`](src/orbits.ts), [`src/orbit-shaders.ts`](src/orbit-shaders.ts) | Instanced stars, planets, and screen-space ribbons, their shaders, and time rebasing |
 | [`src/spiral-map.ts`](src/spiral-map.ts) | Named arm definitions, pattern speeds, polar texture data, and map anchors |
 | [`src/galaxy.ts`](src/galaxy.ts) | Disk stars, decorative stars, the disk’s diffuse light and dust, and distance rings |
-| [`src/sky-catalog.ts`](src/sky-catalog.ts) | Catalog entries and directions in scene coordinates |
-| [`src/deep-sky.ts`](src/deep-sky.ts) | Telescope billboards, panorama projection and masking |
+| [`src/sky-catalog.ts`](src/sky-catalog.ts) | The two neighboring galaxies and their directions in scene coordinates |
+| [`src/deep-sky.ts`](src/deep-sky.ts) | Galaxy portrait billboards |
 | [`src/tour.ts`](src/tour.ts) | Guided tour chapters and narration |
-| [`src/clock.ts`](src/clock.ts), [`src/timeline.ts`](src/timeline.ts), [`src/trail-axis.ts`](src/trail-axis.ts) | Simulation time, seek UI, and the dashed timestamp guide |
+| [`src/clock.ts`](src/clock.ts), [`src/timeline.ts`](src/timeline.ts) | The simulation clock, and time and distance formatting |
 | [`src/callouts.ts`](src/callouts.ts), [`src/icons.ts`](src/icons.ts), [`src/style.css`](src/style.css) | Projected label layout, interface icons, and responsive styling |
 | [`src/view-settings.ts`](src/view-settings.ts) | Display settings and their defaults |
 | [`src/soundtrack.ts`](src/soundtrack.ts), [`src/soundtrack-plan.ts`](src/soundtrack-plan.ts), [`public/audio/`](public/audio/) | The music player, the rules for when each sound plays, and the MP3 themes and swells |
 | [`src/cinematic.ts`](src/cinematic.ts) | The shot sequence and easing for the idle cinematic camera |
-| [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP sky assets and the illustrated fallback view |
+| [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP galaxy portraits and the illustrated fallback view |
 | [`tests/`](tests/) | Unit tests: frame rotations, orbit integration against the measured velocities, binary positions against observation, Kepler’s laws, and formatting |
 | [`package.json`](package.json), [`package-lock.json`](package-lock.json), [`tsconfig.json`](tsconfig.json), [`vite.config.ts`](vite.config.ts) | Toolchain, locked dependency versions, type checking, and bundler configuration |
 
 ## Verify a build
 
-Run `npm run build`, which type-checks and runs the tests first, then `npm run preview` to check the production output. In the overview at 00:00, the four system markers should share one point. Play for a minute and check that they separate, with TRAPPIST-1 moving inward fastest. Select each system and check that labels and timestamps follow the bodies, the data card updates, the timeline seeks and pauses, and both trail reference frames work. Zoom into the Solar System and check that the planets show as shaded globes and Saturn’s rings pass in front of and behind it. In **Sky atlas**, select Andromeda and toggle **All-sky photograph in atlas**. The photo layer and its credit should toggle there. Resize to a phone-width viewport and check that the controls still fit and the data card moves into the sidebar.
+Run `npm run build`, which type-checks and runs the tests first, then `npm run preview` to check the production output. In the overview at 00:00, the four system markers should share one point. Play for a minute and check that they separate, with TRAPPIST-1 moving inward fastest. Select each system and check that labels follow the bodies, the data card updates, pausing eases the clock and music to a stop, and both trail reference frames work. Zoom into the Solar System and check that the planets show as shaded globes and Saturn’s rings pass in front of and behind it. In **Settings**, toggle **Andromeda and Triangulum**. Both portraits and their labels should toggle. Resize to a phone-width viewport and check that the controls still fit and the data card moves into the sidebar.

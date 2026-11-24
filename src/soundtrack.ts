@@ -36,6 +36,8 @@ const LEAVE_FADE = 3.5
 const LOOP_OVERLAP = 8
 const LOOP_FADE = 6
 const MUTE_FADE = 0.8
+const PAUSE_FADE = 2.5
+const RESUME_FADE = 3
 const CURVE_POINTS = 48
 
 function fadeCurve(from: number, to: number) {
@@ -53,6 +55,10 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
   let zoom: Voice | undefined
   let lastZoom = -1
   let muted = false
+  let paused = false
+  let masterFade: Fade = { from: 1, to: 1, start: 0, duration: 0 }
+
+  const masterTarget = () => (muted || paused ? 0 : 1)
 
   /** Call from a user gesture. Creates the audio graph once and resumes it after interruptions. */
   function unlock() {
@@ -63,7 +69,8 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
     if (typeof AudioContext === 'undefined') return
     context = new AudioContext()
     master = context.createGain()
-    master.gain.value = muted ? 0 : 1
+    masterFade = { from: masterTarget(), to: masterTarget(), start: 0, duration: 0 }
+    master.gain.value = masterTarget()
     master.connect(context.destination)
     for (let index = 0; index < POOL_SIZE; index++) {
       const element = new Audio()
@@ -99,16 +106,14 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
     idle.push(voice.channel)
   }
 
-  function fadeVoice(voice: Voice, to: number, seconds: number) {
-    if (!context || voice.released) return
-    const now = context.currentTime
-    const from = levelAt(voice.fade, now)
-    voice.fade = { from, to, start: now, duration: seconds }
-    const param = voice.gain.gain
+  /** Eases an audio parameter from wherever its current fade has reached to a new level. */
+  function ramp(audio: AudioContext, param: AudioParam, fade: Fade, to: number, seconds: number): Fade {
+    const now = audio.currentTime
+    const from = levelAt(fade, now)
     param.cancelScheduledValues(now)
     if (seconds <= 0) {
       param.setValueAtTime(to, now)
-      return
+      return { from: to, to, start: now, duration: 0 }
     }
     try {
       param.setValueCurveAtTime(fadeCurve(from, to), now, seconds)
@@ -117,6 +122,12 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
       param.setValueAtTime(from, now)
       param.linearRampToValueAtTime(to, now + seconds)
     }
+    return { from, to, start: now, duration: seconds }
+  }
+
+  function fadeVoice(voice: Voice, to: number, seconds: number) {
+    if (!context || voice.released) return
+    voice.fade = ramp(context, voice.gain.gain, voice.fade, to, seconds)
   }
 
   function stopVoice(voice: Voice | undefined, seconds: number) {
@@ -189,7 +200,7 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
     } else if (muted) {
       return
     } else if (action === 'zoom') {
-      playZoom()
+      if (!paused) playZoom()
     } else if (action === 'theme') {
       stopVoice(zoom, ZOOM_RELEASE)
       zoom = undefined
@@ -202,12 +213,10 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
     }
   }
 
-  /** Mute acts on the whole mix, so swells and themes that are already fading out go quiet too. */
-  function setMasterLevel(level: number) {
+  /** Mute and pause act on the whole mix, so swells and themes that are already fading go quiet too. */
+  function fadeMaster(seconds: number) {
     if (!context || !master) return
-    const now = context.currentTime
-    master.gain.cancelScheduledValues(now)
-    master.gain.setTargetAtTime(level, now, MUTE_FADE / 4)
+    masterFade = ramp(context, master.gain, masterFade, masterTarget(), seconds)
   }
 
   function dispatch(event: MusicEvent) {
@@ -228,18 +237,24 @@ export function createSoundtrack(tracks: SoundtrackTracks) {
       dispatch({ type: 'arrive', system })
     },
     get muted() { return muted },
+    /** Pausing the simulation eases the music out while the theme keeps running silently; resuming eases it back in. */
+    setPaused(value: boolean) {
+      if (value === paused) return
+      paused = value
+      fadeMaster(paused ? PAUSE_FADE : RESUME_FADE)
+    },
     setMuted(value: boolean) {
       if (value === muted) return
       muted = value
       if (muted) {
-        setMasterLevel(0)
+        fadeMaster(MUTE_FADE)
         stopVoice(zoom, MUTE_FADE)
         stopVoice(theme, MUTE_FADE)
         zoom = theme = undefined
         return
       }
       unlock()
-      setMasterLevel(1)
+      fadeMaster(MUTE_FADE)
       if (state.playing >= 0) theme = startTheme(state.playing, THEME_FADE_IN, 0)
     },
   }
