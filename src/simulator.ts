@@ -51,6 +51,14 @@ interface SimulatorOptions {
   onArrive: (index: number) => void
 }
 
+/** The planet and star tags of one system easing in after the camera arrives, or out as it leaves. */
+interface TagFade {
+  readonly entering: boolean
+  readonly clock: number
+  /** For a fade out: how far each tag had faded in when it began. */
+  readonly levels: readonly number[]
+}
+
 interface Transition {
   elapsed: number
   duration: number
@@ -74,6 +82,11 @@ const LEAVE_SECONDS = 3.5
 const SWITCH_PULLBACK = 0.6
 // How quickly the simulation clock eases to a stop on pause, and back up to speed on resume, per second.
 const STOP_RATE = 3
+// After arriving, the star's tag eases in first, then each planet's tag follows in turn. Leaving eases them all out.
+const TAG_FADE = 0.7
+const STAR_LEAD = 0.45
+const TAG_STAGGER = 0.12
+const TAG_EXIT = 0.45
 const START_RATE = 1.4
 // A close-up looks at a point this far behind the system so that its trail fills the frame.
 const TRAIL_LEAD = 6.8
@@ -143,6 +156,7 @@ export function createSimulator(options: SimulatorOptions) {
   const orbit = new Vector3()
   const spherical = new Spherical()
   let arriving = -1
+  const tagFades = new Map<number, TagFade>()
   let interacting = false
   let idle = Infinity
   let shotTime = 0
@@ -223,9 +237,7 @@ export function createSimulator(options: SimulatorOptions) {
   }
 
   function select(index: number) {
-    if (active !== index && active >= 0) {
-      for (const label of bodyLabels[active]) label.element.hidden = true
-    }
+    if (active !== index && active >= 0) fadeTagsOut(active)
     active = index
     orbits.uniforms.uFocus.value = index
     telemetryTimer = TELEMETRY_INTERVAL
@@ -356,7 +368,7 @@ export function createSimulator(options: SimulatorOptions) {
     callouts.reserve(marker.x - 8, marker.y + 14, marker.x + 150, marker.y + 46)
   }
 
-  function updateAnnotations(time: number) {
+  function updateAnnotations(time: number, delta: number) {
     callouts.begin(width, height, obstacles)
     const overview = active < 0 && showLabels
     for (let index = 0; index < systemLabels.length; index++) {
@@ -406,17 +418,47 @@ export function createSimulator(options: SimulatorOptions) {
       callouts.place(label, sky.locate(index, camera.position, marker))
     }
 
-    if (active >= 0) {
-      const system = systems[active]
-      for (let index = 0; index < system.bodies.length; index++) {
-        const label = bodyLabels[active][index]
-        if (showLabels && !transition) {
-          sampleSystem(system, time, marker)
-          const [x, y, z] = bodyOffset(system.bodies[index], time)
-          marker.set(marker.x + x, marker.y + y, marker.z + z)
-          callouts.place(label, marker)
-        } else label.element.hidden = true
+    updateTags(time, delta)
+    callouts.finish()
+  }
+
+  function tagLevel(fade: TagFade, index: number) {
+    if (!fade.entering) return (fade.levels[index] ?? 0) * (1 - smootherstep(fade.clock / TAG_EXIT))
+    const delay = index === 0 ? 0 : STAR_LEAD + (index - 1) * TAG_STAGGER
+    return smootherstep((fade.clock - delay) / TAG_FADE)
+  }
+
+  function fadeTagsOut(system: number) {
+    const fade = tagFades.get(system)
+    if (!fade?.entering) return
+    const levels = systems[system].bodies.map((_, index) => tagLevel(fade, index))
+    tagFades.set(system, { entering: false, clock: 0, levels })
+  }
+
+  /** Planet and star tags stay pinned to their bodies, ease in one by one after arrival, and ease out on leaving. */
+  function updateTags(time: number, delta: number) {
+    const showing = active >= 0 && showLabels && !transition
+    if (active >= 0 && !showing) fadeTagsOut(active)
+    else if (showing && !tagFades.get(active)?.entering) tagFades.set(active, { entering: true, clock: 0, levels: [] })
+    for (const [system, previous] of tagFades) {
+      const fade = { ...previous, clock: previous.clock + delta }
+      tagFades.set(system, fade)
+      let visible = false
+      for (let index = 0; index < systems[system].bodies.length; index++) {
+        const label = bodyLabels[system][index]
+        const level = tagLevel(fade, index)
+        if (level <= 0.001) {
+          label.element.hidden = true
+          continue
+        }
+        visible = true
+        sampleSystem(systems[system], time, marker)
+        const [x, y, z] = bodyOffset(systems[system].bodies[index], time)
+        marker.set(marker.x + x, marker.y + y, marker.z + z)
+        callouts.pin(label, marker)
+        label.element.style.setProperty('--reveal', level.toFixed(3))
       }
+      if (!fade.entering && !visible) tagFades.delete(system)
     }
   }
 
@@ -452,7 +494,7 @@ export function createSimulator(options: SimulatorOptions) {
     orbits.uniforms.uSystemFrame.value = active >= 0 && view.frame === 'system'
     sky.update(camera.position, view.photographs)
     galaxy.setTime(clock.time)
-    updateAnnotations(clock.time)
+    updateAnnotations(clock.time, cameraDelta)
     composer.render(cameraDelta)
     if (firstFrame) {
       firstFrame = false
