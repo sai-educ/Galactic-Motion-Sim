@@ -20,7 +20,9 @@ export interface DepthBox extends Rect {
 /** `behind` tags sit under a nearer tag and dim; `front` tags cover a farther one and brighten. */
 export type Layer = 'clear' | 'front' | 'behind'
 
-type CalloutKind = 'system' | 'body' | 'arm' | 'scale' | 'sky'
+type CalloutKind = 'system' | 'neighbor' | 'body' | 'arm' | 'scale' | 'sky'
+// Tags the viewer can click to follow what they name.
+const CLICKABLE: readonly CalloutKind[] = ['system', 'neighbor']
 
 function intersects(a: Rect, b: Rect) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
@@ -42,7 +44,7 @@ export function layerByDepth(boxes: readonly DepthBox[]): Layer[] {
 }
 
 export function createCallout(text: string, kind: CalloutKind, color?: string): Callout {
-  const element = document.createElement(kind === 'system' ? 'button' : 'div')
+  const element = document.createElement(CLICKABLE.includes(kind) ? 'button' : 'div')
   element.className = `annotation ${kind}-callout`
   element.hidden = true
   if (element instanceof HTMLButtonElement) element.type = 'button'

@@ -29,6 +29,7 @@ Gattupalli, S., & Chakravarty, P. (2025). *Prompting the Universe: AI-Generated 
 | Part of the model | Status |
 | --- | --- |
 | Where the four systems are | Real. All four lie within 41 light-years of the Sun, so at the scale of the Galaxy they start in one spot. |
+| Neighboring stars | Real. Seven more stars within 63 light-years, placed and set moving from the parallaxes, proper motions, and radial velocities that SIMBAD lists. Each is included because its orbit shows something. |
 | Their paths around the Galaxy | Integrated from each system’s measured position and space velocity in a potential with a flat 236 km/s rotation curve. They drift apart as you play, because each star follows its own orbit. |
 | Time | One simulation second spans about 1.36 million years of galactic motion. The clock starts at the year 2000. |
 | Orbital planes, eccentricities, and starting positions in the close-ups | Real, taken from published orbital elements for the J2000 epoch. |
@@ -68,13 +69,13 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 
 ## Controls and navigation
 
-- **Systems** lists the four systems. Select a card, a projected marker, or press **1**–**4** to track one. Drag to orbit the camera and scroll or pinch to zoom. Zooming in closes on the star itself, and planets grow into shaded globes.
+- **Systems** lists the four featured systems. Select a card, a projected marker, or press **1**–**4** to track one. The **Neighboring stars** switch swaps the list for seven quieter stars in three groups: fellow travelers, stars passing through, and close calls. Hover a name for its story and select it to follow the star. Drag to orbit the camera and scroll or pinch to zoom. Zooming in closes on the star itself, and planets grow into shaded globes.
 - **Cinematic camera.** While a system is tracked and the camera is left alone, it eases slowly through a sequence of shots: from above, along the disk, from below, close in and wide. Dragging or zooming takes over at once, and the shots resume after about nine seconds. Moving between two systems pulls the camera back and swoops in again. With reduced motion enabled, the camera stays still.
 - **Music** or **M** turns the soundtrack on or off, and the choice is remembered. Flying in from the Galaxy to a system plays one of two swells, never the same one twice in a row, then eases into that system’s theme, which loops without a gap. Choosing another system keeps the current theme playing during the flight, then crossfades to the new one without a swell. Leaving the systems fades the music out.
 - The **data card** beside a tracked system lists a few facts and four live figures: distance from the Galactic Center, height above the disk, speed around the Galaxy, and distance from the Sun.
 - **Galaxy overview** or **G** returns to the oblique view. **North view** or **N** looks down onto the disk from galactic north, where clockwise rotation is apparent.
 - **Labels** or **L** toggles projected names for systems, bodies, the galactic map, and the two neighboring galaxies. Separate arm and neighbor-galaxy label switches appear in **Settings**. Labels move aside or disappear when they would overlap each other or the interface panels.
-- **Guided tour** or **T** starts at the Galaxy overview, then flies into each system in turn with its swell and theme, stays about 30 seconds while the cinematic camera moves around it, and zooms back out to the Galaxy, with its music fading, before the next. Each stop has a short narration, and the tour loops every 164 seconds. Interacting with the scene or choosing a system manually returns the camera to free roam.
+- **Guided tour** or **T** starts at the Galaxy overview, then flies into each featured system in turn with its swell and theme, and last into Arcturus, stays about 30 seconds while the cinematic camera moves around it, and zooms back out to the Galaxy, with its music fading, before the next. Each stop has a short narration, and the tour loops every 202 seconds. Interacting with the scene or choosing a system manually returns the camera to free roam.
 - **Pause simulation** or **Space** eases the simulation clock to a stop and fades the music out, while leaving the camera available. Resuming eases the clock back up to speed and fades the music back in. Keyboard shortcuts yield to text fields, menus, and the About dialog. If reduced motion is enabled at startup, playback starts paused and camera transitions snap to their destinations.
 - **Reset simulation** restores the clock, time scale, trail length, and overview framing. Display settings are independent of the simulation reset.
 
@@ -98,6 +99,7 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 | Spiral arm labels | On | Shows named structures when viewing the full modeled disk |
 | Neighbor galaxy labels | On | Shows the names of Andromeda and Triangulum |
 | Andromeda and Triangulum | On | Draws enlarged portraits of the two galaxies at their catalog directions |
+| Neighboring stars | On | Draws the seven neighboring stars and their trails in the overview, and names each once it has drifted clear of the Sun |
 | Background stars (decorative) | On | Draws procedural star points behind the modeled disk |
 
 The FPS counter in the upper right reports measured animation frames per second, independently of the simulation’s 120 Hz clock.
@@ -152,9 +154,31 @@ Each system’s orbit starts from its measured place and motion.
 | Sirius | 227.23°, −8.89° | 8.60 light-years | +14.4, −0.3, −11.5 km/s |
 | TRAPPIST-1 | 69.71°, −56.64° | 40.7 light-years | −44.0, −66.7, +10.7 km/s |
 
-U points toward the galactic center, V along the direction of rotation, and W toward the north galactic pole. The velocities come from each system’s proper motion, parallax, and radial velocity, and the TRAPPIST-1 values agree with [Burgasser and Mamajek (2017)](https://arxiv.org/abs/1706.02018). The Sun’s own motion relative to a circular orbit, (11.1, 12.24, 7.25) km/s from Schönrich, Binney, and Dehnen (2010), is added to all four, and the Sun starts 20.8 parsecs north of the mid-plane (Bennett and Bovy 2019).
+U points toward the galactic center, V along the direction of rotation, and W toward the north galactic pole. The velocities come from each system’s proper motion, parallax, and radial velocity, and the TRAPPIST-1 values agree with [Burgasser and Mamajek (2017)](https://arxiv.org/abs/1706.02018). The Sun’s own motion relative to a circular orbit, (11.1, 12.24, 7.25) km/s from Schönrich, Binney, and Dehnen (2010), is added to every star, and the Sun starts 20.8 parsecs north of the mid-plane (Bennett and Bovy 2019).
 
-`galactic-orbit.ts` integrates each star’s motion in the plane with a fourth-order Runge–Kutta scheme, in a potential whose rotation curve is flat at 236 km/s. In such a potential the radius repeats exactly after one radial period and the azimuth advances by a fixed angle, so the module stores each orbit as two eight-term Fourier series in the radial phase. The shaders and the CPU evaluate the same series, so the path costs no memory as time grows and can be evaluated at any time, including before the year 2000. Motion through the disk is a separate harmonic oscillation at 70 km/s per kiloparsec (Binney and Tremaine 2008), which gives the Sun a period of about 88 million years and a reach of about 100 parsecs.
+### Neighboring stars
+
+Seven more stars share the Sun’s neighborhood in the model. A star is included only when its orbit shows something and stays inside the part of the Galaxy the model describes: beyond 2.5 kiloparsecs from the center and within 400 parsecs of the disk. The tests check both conditions, and that each star belongs in its group.
+
+| Star | Group | Distance | Velocity relative to the Sun (U, V, W) | Closest to the Sun |
+| --- | --- | --- | --- | --- |
+| Vega | Fellow traveler | 25.0 light-years | −15.8, −6.0, −7.6 km/s | 17.2 light-years, in 290,000 years |
+| Altair | Fellow traveler | 16.7 light-years | −29.2, −10.4, −2.5 km/s | 8.6 light-years, in 140,000 years |
+| Fomalhaut | Fellow traveler | 25.1 light-years | −5.7, −8.3, −11.0 km/s | 22.6 light-years, 220,000 years ago |
+| Barnard’s Star | Passing through | 6.0 light-years | −141.0, +5.1, +18.6 km/s | 3.8 light-years, in 9,700 years |
+| Arcturus | Passing through | 36.7 light-years | +25.2, −119.1, −3.1 km/s | 36.7 light-years, in 3,900 years |
+| Gliese 710 | Close call | 62.2 light-years | −12.7, −6.7, −1.5 km/s | 0.17 light-years, in 1.29 million years |
+| Scholz’s Star | Close call | 21.9 light-years | −58.5, −59.1, +0.4 km/s | 0.92 light-years, 79,000 years ago |
+
+Fellow travelers follow orbits at least as round as the Sun’s. Stars passing through follow orbits more than four times as stretched: Barnard’s Star swings out to 45,000 light-years from the center, and Arcturus falls in to 9,400. Close calls pass within about a light-year of the Sun.
+
+`astrometry.ts` turns each star’s parallax, proper motion, and radial velocity into the velocity above, and `encounters.ts` finds the closest approach by searching about four million years either side of today. The measurements are the ones [SIMBAD](https://simbad.cds.unistra.fr/simbad/) lists: Gaia EDR3 for the fainter stars, Hipparcos (van Leeuwen 2007) for the bright ones that saturate Gaia, and Henry et al. (2018) with Burgasser et al. (2015) for Scholz’s Star. Temperatures are rounded from the published measurements SIMBAD collects and set each star’s color.
+
+The close calls match published work. For Gliese 710, [Bailer-Jones (2022)](https://arxiv.org/abs/2207.06258) finds 0.064 parsecs (0.21 light-years) and de la Fuente Marcos and de la Fuente Marcos (2022) 0.052 parsecs (0.17 light-years), both about 1.3 million years from now. For Scholz’s Star, [Mamajek et al. (2015)](https://arxiv.org/abs/1502.04655) found 0.8 light-years 70,000 years ago, and Dupuy et al. (2019) 1.1 light-years 80,500 years ago. The spread between those papers is a fair measure of how well these passes are known.
+
+Kapteyn’s Star is deliberately left out. It circles the Galaxy backwards on a plunging orbit that dives to within a kiloparsec of the center and rises more than 600 parsecs from the disk, where the flat rotation curve and the simple up-and-down motion used here no longer hold.
+
+`galactic-orbit.ts` integrates each star’s motion in the plane with a fourth-order Runge–Kutta scheme, in a potential whose rotation curve is flat at 236 km/s. In such a potential the radius repeats exactly after one radial period and the azimuth advances by a fixed angle, so the module stores each orbit as two 24-term Fourier series in the radial phase. A star’s velocity is measured along the Sun’s axes, so it is first turned into the star’s own radial and rotational directions, which differ slightly because the star sits elsewhere in the Galaxy. That small turn matters for close passes: without it Gliese 710 would miss the Sun by half a light-year more than its measured motion implies. The shaders and the CPU evaluate the same series, so the path costs no memory as time grows and can be evaluated at any time, including before the year 2000. Motion through the disk is a separate harmonic oscillation at 70 km/s per kiloparsec (Binney and Tremaine 2008), which gives the Sun a period of about 88 million years and a reach of about 100 parsecs.
 
 The model’s limits are these: the potential is smooth and axisymmetric, so the bar and arms do not tug on the stars, the vertical frequency does not change with radius, and the measured velocities carry uncertainties that grow into large position errors over hundreds of millions of years. The paths show how each star’s present motion would carry it. They are not a forecast.
 
@@ -199,7 +223,7 @@ Stars are luminous billboards whose colors come from their surface temperatures,
 
 The clock represents time as 1/120-second ticks plus a fractional remainder. Each animation callback advances it by elapsed browser time, multiplied by the selected rate. Raw playback deltas are capped at 0.05 seconds, and hidden tabs skip animation work. A seek sets the clock directly and reevaluates the scene at the selected time.
 
-The GPU draws one instanced ribbon mesh, one instanced star mesh, and one instanced planet mesh across the four systems. The overview draws a single marker and trail for each system, and a close-up draws only its own 22 or fewer bodies. Each ribbon strip has 512 samples, two vertices per sample, and indexed triangles. The vertex shader evaluates each point at `time − age × trailLength`. A nearby sample estimates the screen-space tangent so the strip can widen perpendicular to the path. The fragment shader tapers the tail and boosts brightness near the body. The renderer recomputes paths analytically, so trail memory stays fixed even as playback time grows.
+The GPU draws one instanced ribbon mesh, one instanced star mesh, and one instanced planet mesh across every system. The Fourier terms sit in a small floating-point texture with one row per system, so the number of systems is not bound by the shader’s uniform limit. The overview draws a single marker and trail for each system, and a close-up draws only its own 22 or fewer bodies. Each ribbon strip has 512 samples, two vertices per sample, and indexed triangles. The vertex shader evaluates each point at `time − age × trailLength`. A nearby sample estimates the screen-space tangent so the strip can widen perpendicular to the path. The fragment shader tapers the tail and boosts brightness near the body. The renderer recomputes paths analytically, so trail memory stays fixed even as playback time grows.
 
 Every 128 simulation seconds, the renderer moves the shader’s time origin forward and rebases its phase attributes. That keeps the GPU time values small while the UI and CPU positions continue using absolute simulation time. Seeking backwards also updates the shader’s time origin.
 
@@ -219,7 +243,9 @@ The simulation camera uses a perspective projection and damped orbit controls. D
 | 82–112 seconds | Sirius |
 | 112–120 seconds | Back out to the Galaxy |
 | 120–150 seconds | TRAPPIST-1 |
-| 150–164 seconds | Return to the overview |
+| 150–158 seconds | Back out to the Galaxy |
+| 158–188 seconds | Arcturus |
+| 188–202 seconds | Return to the overview |
 
 The tour runs on camera time. Changing simulation speed scales the orbits and trail clock while the tour keeps its camera pacing. Pausing the simulation holds the tour.
 
@@ -251,7 +277,9 @@ The portraits are center-cropped, resized, and drawn as edge-blended billboards.
 | [`src/simulator.ts`](src/simulator.ts) | Scene orchestration, camera transitions, render pipeline, label updates, live telemetry, FPS measurement, and quality adaptation |
 | [`src/astro.ts`](src/astro.ts) | Physical constants, scene units, reference-frame rotations, Kepler’s equation, and black-body colors |
 | [`src/galactic-orbit.ts`](src/galactic-orbit.ts) | Orbit integration from measured kinematics, the Fourier representation, and CPU sampling |
-| [`src/systems.ts`](src/systems.ts) | Orbital elements and facts for the four systems, and CPU sampling of body positions |
+| [`src/systems.ts`](src/systems.ts) | Orbital elements and facts for the four featured systems, the neighboring stars built into systems, and CPU sampling of body positions |
+| [`src/neighbors.ts`](src/neighbors.ts), [`src/astrometry.ts`](src/astrometry.ts) | The neighboring stars’ catalog measurements and groups, and the conversion from parallax, proper motion, and radial velocity to a space velocity |
+| [`src/encounters.ts`](src/encounters.ts) | The closest approach between two orbits |
 | [`src/orbits.ts`](src/orbits.ts), [`src/orbit-shaders.ts`](src/orbit-shaders.ts) | Instanced stars, planets, and screen-space ribbons, their shaders, and time rebasing |
 | [`src/spiral-map.ts`](src/spiral-map.ts) | Named arm definitions, pattern speeds, polar texture data, and map anchors |
 | [`src/galaxy.ts`](src/galaxy.ts) | Disk stars, decorative stars, the disk’s diffuse light and dust, and distance rings |
@@ -264,7 +292,7 @@ The portraits are center-cropped, resized, and drawn as edge-blended billboards.
 | [`src/soundtrack.ts`](src/soundtrack.ts), [`src/soundtrack-plan.ts`](src/soundtrack-plan.ts), [`public/audio/`](public/audio/) | The music player, the rules for when each sound plays, and the MP3 themes and swells |
 | [`src/cinematic.ts`](src/cinematic.ts) | The shot sequence and easing for the idle cinematic camera |
 | [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP galaxy portraits and the illustrated fallback view |
-| [`tests/`](tests/) | Unit tests: frame rotations, orbit integration against the measured velocities, binary positions against observation, Kepler’s laws, and formatting |
+| [`tests/`](tests/) | Unit tests: frame rotations, space velocities from catalog astrometry, orbit integration against the measured velocities, closest approaches against published flybys, binary positions against observation, Kepler’s laws, and formatting |
 | [`package.json`](package.json), [`package-lock.json`](package-lock.json), [`tsconfig.json`](tsconfig.json), [`vite.config.ts`](vite.config.ts) | Toolchain, locked dependency versions, type checking, and bundler configuration |
 
 ## Verify a build

@@ -95,6 +95,8 @@ const OBSTACLE_INTERVAL = 0.25
 const OBSTACLE_PADDING = 8
 const RING_LABEL_AZIMUTH = SOLAR_AZIMUTH + 2.5
 const BAR_LABEL_RADIUS = 30
+// A neighboring star is named in the overview once it has drifted this many pixels from the Sun's marker.
+const NEIGHBOR_LABEL_GAP = 26
 
 export function createSimulator(options: SimulatorOptions) {
   const { canvas, systemLabels, coreLabel, bodyLabels, armLabels, ringLabels, skyLabels } = options
@@ -139,6 +141,8 @@ export function createSimulator(options: SimulatorOptions) {
   const marker = new Vector3()
   const velocity = new Vector3()
   const sun = new Vector3()
+  const sunScreen = new Vector3()
+  const probe = new Vector3()
   const callouts = createCalloutLayout(camera, armLabels.length + ringLabels.length + skyLabels.length
     + systemLabels.length + 1 + Math.max(...bodyLabels.map(group => group.length)))
   const armPositions = arms.map(arm => armAnchor(arm, 0))
@@ -368,15 +372,30 @@ export function createSimulator(options: SimulatorOptions) {
     callouts.reserve(marker.x - 8, marker.y + 14, marker.x + 150, marker.y + 46)
   }
 
+  /** Whether a world position has separated from the Sun's marker on screen. `sunScreen` holds the Sun's projection. */
+  function apartFromSun(position: Vector3) {
+    probe.copy(position).project(camera)
+    return Math.hypot((probe.x - sunScreen.x) * width, (probe.y - sunScreen.y) * height) / 2 >= NEIGHBOR_LABEL_GAP
+  }
+
   function updateAnnotations(time: number, delta: number) {
     callouts.begin(width, height, obstacles)
     const overview = active < 0 && showLabels
+    if (overview) {
+      sampleSystem(systems[0], time, sunScreen)
+      sunScreen.project(camera)
+    }
     for (let index = 0; index < systemLabels.length; index++) {
-      if (!overview) systemLabels[index].element.hidden = true
-      else {
-        sampleSystem(systems[index], time, marker)
-        callouts.place(systemLabels[index], marker)
+      const label = systemLabels[index]
+      const neighbor = Boolean(systems[index].neighbor)
+      if (!overview || (neighbor && !view.neighbors)) {
+        label.element.hidden = true
+        continue
       }
+      sampleSystem(systems[index], time, marker)
+      // Neighbors start on top of the Sun, so each is named only once its dot has pulled clear.
+      if (neighbor && !apartFromSun(marker)) label.element.hidden = true
+      else callouts.place(label, marker)
     }
     if (overview) markCore()
     else coreLabel.hidden = true
@@ -492,6 +511,7 @@ export function createSimulator(options: SimulatorOptions) {
     galaxy.rings.visible = view.rings && active < 0
     orbits.ribbons.visible = view.trails
     orbits.uniforms.uSystemFrame.value = active >= 0 && view.frame === 'system'
+    orbits.uniforms.uNeighbors.value = view.neighbors ? 1 : 0
     sky.update(camera.position, view.photographs)
     galaxy.setTime(clock.time)
     updateAnnotations(clock.time, cameraDelta)

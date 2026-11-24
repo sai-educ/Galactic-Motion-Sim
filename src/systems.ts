@@ -1,8 +1,14 @@
 import {
-  blackbodyColor, cross, eccentricAnomaly, eclipticToScene, equatorialToScene, galacticToScene, normalize, orbitalAxes,
-  RAD, scale, skyAxes, sphericalDirection, TAU, add, type Vec3,
+  blackbodyColor, cross, eccentricAnomaly, eclipticToScene, equatorialToScene, galacticToScene, LY_PER_UNIT, normalize,
+  orbitalAxes, RAD, scale, skyAxes, sphericalDirection, TAU, add, type Vec3,
 } from './astro'
-import { galacticOrbit, sampleGalacticOrbit, SUN, type GalacticOrbit, type Settable } from './galactic-orbit'
+import { kinematics } from './astrometry'
+import { closestApproach, type Encounter } from './encounters'
+import {
+  galacticOrbit, radialRange, sampleGalacticOrbit, SUN, type GalacticOrbit, type Settable,
+} from './galactic-orbit'
+import { neighborStars, type NeighborGroup, type NeighborStar } from './neighbors'
+import { formatLightYears, formatWhen } from './timeline'
 
 /** A Keplerian ellipse about the system's center of mass, oriented in scene axes. */
 export interface LocalOrbit {
@@ -47,6 +53,8 @@ export interface System {
   viewDistance: number
   facts: Fact[]
   bodies: Body[]
+  /** Set on the neighboring stars, which are drawn quietly and listed apart from the featured systems. */
+  neighbor?: { group: NeighborGroup, encounter: Encounter }
 }
 
 const AXIS: Vec3 = [1, 0, 0]
@@ -202,11 +210,39 @@ const trappistPlanets = [
 const trappistPlane = skyOrbit(TRAPPIST.ra, TRAPPIST.dec, 89.8, 0, 0)
 const trappistPole = normalize(cross(trappistPlane.p, trappistPlane.q))
 
+// ── Neighboring stars ─────────────────────────────────────────────────────────────────────────
+const SOLAR_PATH = galacticOrbit(SUN)
+const NEIGHBOR_VIEW_DISTANCE = 34
+const NEIGHBOR_GLOW = 2.4
+const kelvinFormat = new Intl.NumberFormat('en-US')
+
+function neighborSystem(entry: NeighborStar): System {
+  const measured = kinematics(entry.astrometry)
+  const path = galacticOrbit(measured)
+  const encounter = closestApproach(path, SOLAR_PATH)
+  const { inner, outer } = radialRange(path)
+  const color = blackbodyColor(entry.kelvin)
+  return {
+    id: entry.id, name: entry.name, kind: entry.type,
+    description: entry.story, color, light: color, path, viewDistance: NEIGHBOR_VIEW_DISTANCE,
+    facts: [
+      { label: 'Star', value: `${entry.spectralType} · about ${kelvinFormat.format(entry.kelvin)} K` },
+      { label: 'Speed past the Sun', value: `${Math.round(Math.hypot(...measured.velocity))} km/s` },
+      { label: 'Distance from the center',
+        value: `${formatLightYears(inner * LY_PER_UNIT).replace(' ly', '')} to ${formatLightYears(outer * LY_PER_UNIT)}` },
+      { label: 'Closest to the Sun',
+        value: `${formatLightYears(encounter.distance * LY_PER_UNIT)} · ${formatWhen(encounter.time)}` },
+    ],
+    bodies: [star(entry.name, entry.kelvin, entry.size, NEIGHBOR_GLOW)],
+    neighbor: { group: entry.group, encounter },
+  }
+}
+
 export const systems: System[] = [
   {
     id: 'sol', name: 'Solar System', kind: '1 star · 8 planets',
     description: 'Eight planets circle the Sun on a plane tipped 60° to the Galaxy’s disk, so their paths wind into helices.',
-    color: '#ffe2ae', light: blackbodyColor(5772), path: galacticOrbit(SUN), viewDistance: 47,
+    color: '#ffe2ae', light: blackbodyColor(5772), path: SOLAR_PATH, viewDistance: 47,
     facts: [
       { label: 'Star', value: 'G2V · 5,772 K' },
       { label: 'One lap of the Galaxy', value: '≈ 220 million years' },
@@ -268,6 +304,7 @@ export const systems: System[] = [
       }),
     ],
   },
+  ...neighborStars.map(neighborSystem),
 ]
 
 export function randomSequence(seed: number) {

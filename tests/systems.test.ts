@@ -134,14 +134,23 @@ describe('TRAPPIST-1', () => {
   })
 })
 
-test('all four systems start within 41 light-years of one another', () => {
-  const positions = systems.map(candidate => {
+describe('where the systems start', () => {
+  const fromSun = systems.map(candidate => {
     const position = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { Object.assign(this, { x, y, z }) } }
+    const sun = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { Object.assign(this, { x, y, z }) } }
     sampleSystem(candidate, 0, position)
-    return position
+    sampleSystem(systems[0], 0, sun)
+    return { candidate, units: Math.hypot(position.x - sun.x, position.y - sun.y, position.z - sun.z) }
   })
-  for (const position of positions) {
-    const fromSun = Math.hypot(position.x - positions[0].x, position.y - positions[0].y, position.z - positions[0].z)
-    expect(fromSun).toBeLessThan(0.21)
-  }
+
+  test('all four featured systems start within 41 light-years of one another', () => {
+    const featured = fromSun.filter(({ candidate }) => !candidate.neighbor)
+
+    expect(featured).toHaveLength(4)
+    for (const { units } of featured) expect(units).toBeLessThan(0.21)
+  })
+
+  test('every neighboring star starts within 65 light-years of the Sun', () => {
+    for (const { units } of fromSun.filter(({ candidate }) => candidate.neighbor)) expect(units).toBeLessThan(0.32)
+  })
 })

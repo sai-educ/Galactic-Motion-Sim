@@ -90,9 +90,13 @@
           </div>
         </section>
 
-        <section class="systems-section" aria-labelledby="systems-label">
-          <h3 class="section-label" id="systems-label">Featured star systems</h3>
+        <section class="systems-section" aria-label="Stars to follow">
+          <div class="segments list-switch" role="group" aria-label="Which stars to list">
+            <button type="button" data-list="featured" aria-pressed="true">Featured systems</button>
+            <button type="button" data-list="neighbors" aria-pressed="false">Neighboring stars</button>
+          </div>
           <div class="systems-list" id="systems-list"></div>
+          <div class="neighbors-list" id="neighbors-list" hidden></div>
         </section>
 
         <section class="settings" aria-labelledby="settings-label">
@@ -146,6 +150,7 @@
             <label class="check-field"><span>Spiral arm labels</span><input type="checkbox" data-setting="armLabels" data-scene-control checked disabled /></label>
             <label class="check-field"><span>Andromeda and Triangulum</span><input type="checkbox" data-setting="photographs" data-scene-control checked disabled /></label>
             <label class="check-field"><span>Neighbor galaxy labels</span><input type="checkbox" data-setting="skyLabels" data-scene-control checked disabled /></label>
+            <label class="check-field"><span>Neighboring stars</span><input type="checkbox" data-setting="neighbors" data-scene-control checked disabled /></label>
             <label class="check-field"><span>Background stars (decorative)</span><input type="checkbox" data-setting="stars" data-scene-control checked disabled /></label>
           </fieldset>
         </div>
@@ -163,6 +168,7 @@
       <p class="section-label">About the simulation</p>
       <h2 id="about-title">What is real here</h2>
       <p><strong>Where the systems are.</strong> Alpha Centauri, Sirius, and TRAPPIST-1 all lie within 41 light-years of the Sun, so at the scale of the Galaxy they start in the same spot. Each one’s path is integrated from its measured position and velocity in a model Galaxy with a flat rotation curve. Press play and they drift apart, because every star follows its own orbit. The paths show where today’s motion leads. They are not a forecast.</p>
+      <p><strong>Neighboring stars.</strong> Seven more nearby stars appear as small dots, each because its orbit shows something. Three keep pace with the Sun on orbits as round as its own, two only pass through on stretched orbits, and two come within about a light-year of the Sun. Their paths are computed the same way, from the positions and motions that <a href="https://simbad.cds.unistra.fr/simbad/">SIMBAD</a> lists from Gaia and Hipparcos. Kapteyn’s Star, which circles the Galaxy backwards, is left out because it dives closer to the center than this model can follow.</p>
       <p><strong>Time.</strong> One simulation second spans about 1.36 million years of galactic motion. The clock starts at the year 2000, and the trails show where each system came from before then.</p>
       <p><strong>Close-ups.</strong> Planets and companion stars move on ellipses in their measured orbital planes, starting from their positions in 2000. Their sizes and orbits are enlarged enormously and their motion is sped up so that you can see it. The Solar System’s spacing is compressed, and TRAPPIST-1’s orbits are drawn to scale with one another. TRAPPIST-1’s planet colors are for telling them apart.</p>
       <p><strong>The Galaxy.</strong> The disk turns clockwise as seen from galactic north. The arms near the Sun follow <a href="https://arxiv.org/abs/1910.03357">Reid et al.’s maser measurements</a>, and the far side is inferred. The spiral pattern turns at <a href="https://arxiv.org/abs/1905.08133">28 km/s per kiloparsec</a> and the bar at <a href="https://arxiv.org/abs/1608.07954">39</a>, so stars drift through the arms. Star colors follow temperature: blue-white young stars in the arms, golden old stars in the bar.</p>

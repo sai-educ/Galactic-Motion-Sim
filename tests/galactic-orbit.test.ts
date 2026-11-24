@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
-  CIRCULAR_SPEED_KMS, LY_PER_UNIT, MYR_PER_SECOND, SOLAR_PECULIAR_KMS, SOLAR_RADIUS_KPC, UNITS_PER_KPC,
+  CIRCULAR_SPEED_KMS, galacticToScene, LY_PER_UNIT, MYR_PER_SECOND, SOLAR_RADIUS_KPC, UNITS_PER_KPC,
 } from '../src/astro'
 import { galacticOrbit, sampleGalacticOrbit, SUN, toKms, type Kinematics } from '../src/galactic-orbit'
 
@@ -30,11 +30,18 @@ const stars: [string, Kinematics][] = [
 describe.each(stars)('galactic orbit of %s', (_, kinematics) => {
   const orbit = galacticOrbit(kinematics)
 
-  test('starts with the measured velocity', () => {
-    const { velocity } = state(orbit, 0)
-    expect(velocity[0]).toBeCloseTo(-(kinematics.velocity[0] + SOLAR_PECULIAR_KMS[0]), 1)
-    expect(velocity[1]).toBeCloseTo(CIRCULAR_SPEED_KMS + kinematics.velocity[1] + SOLAR_PECULIAR_KMS[1], 1)
-    expect(velocity[2]).toBeCloseTo(kinematics.velocity[2] + SOLAR_PECULIAR_KMS[2], 1)
+  test('starts with the measured velocity relative to the Sun', () => {
+    // The measured velocity is given along the Sun's own axes, which are turned slightly from the star's.
+    const expected = galacticToScene(kinematics.velocity)
+    const star = vector()
+    const sun = vector()
+
+    sampleGalacticOrbit(orbit, 0, vector(), star)
+    sampleGalacticOrbit(galacticOrbit(SUN), 0, vector(), sun)
+
+    expect(toKms(star.x - sun.x)).toBeCloseTo(expected[0], 2)
+    expect(toKms(star.y - sun.y)).toBeCloseTo(expected[1], 2)
+    expect(toKms(star.z - sun.z)).toBeCloseTo(expected[2], 2)
   })
 
   test('starts at the measured distance from the Sun', () => {

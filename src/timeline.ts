@@ -19,6 +19,16 @@ export function formatLightYears(value: number) {
   return `${lightYears.format(Math.round(value / step) * step)} ly`
 }
 
+/** When a simulation time falls, counted in years from the year 2000 and rounded to what the measurements support. */
+export function formatWhen(time: number) {
+  const years = time * MYR_PER_SECOND * 1e6
+  const size = Math.abs(years)
+  if (size < 50) return 'Today'
+  const step = 10 ** (Math.floor(Math.log10(size)) - 1)
+  const amount = size >= 1e6 ? `${(size / 1e6).toFixed(2)} million` : lightYears.format(Math.round(size / step) * step)
+  return `${amount} years ${years < 0 ? 'ago' : 'from now'}`
+}
+
 export function formatTime(time: number, tenths = false) {
   const ticks = Math.floor(Math.abs(time) * 10 + 0.000001)
   const sign = time < 0 ? '−' : ''

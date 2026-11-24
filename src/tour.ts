@@ -1,3 +1,5 @@
+import { systems } from './systems'
+
 export interface Chapter {
   /** Seconds into the tour at which the chapter begins. */
   time: number
@@ -9,6 +11,8 @@ export interface Chapter {
 
 // The tour zooms into each system for about half a minute, then back out to the Galaxy before the next one,
 // so every visit opens with the camera flying in and the music swelling into that system's theme.
+const ARCTURUS = systems.findIndex(system => system.id === 'arcturus')
+
 export const chapters: Chapter[] = [
   { time: 0, system: -1, title: 'Milky Way overview',
     note: 'A barred spiral about 100,000 light-years across. All four systems on this tour start in one spot, 26,600 light-years from the center.' },
@@ -26,8 +30,12 @@ export const chapters: Chapter[] = [
     note: 'The last stop, TRAPPIST-1, is about 41 light-years away. That is the farthest of the four, yet on this scale it shares the same spot.' },
   { time: 120, system: 3, title: 'TRAPPIST-1',
     note: 'Seven rocky planets hug a dim red star. It crosses the Sun’s neighborhood at 81 km/s on a stretched orbit that dips deep into the inner Galaxy.' },
-  { time: 150, system: -1, title: 'Neighbors for now',
-    note: 'Watch the four paths separate. Every star follows its own orbit, so today’s neighborhood is only a brief meeting.' },
+  { time: 150, system: -1, title: 'Other company',
+    note: 'More stars share this spot today. Some keep pace with the Sun for ages. Others, like Arcturus next, are only passing through.' },
+  { time: 158, system: ARCTURUS, title: 'Arcturus',
+    note: 'An old red giant that circles the Galaxy about 120 km/s slower than the Sun. Too slow to hold a round path, it falls deep toward the center on every lap.' },
+  { time: 188, system: -1, title: 'Neighbors for now',
+    note: 'Watch the paths separate. Every star follows its own orbit, so today’s neighborhood is only a brief meeting.' },
 ]
 
-export const TOUR_DURATION = 164
+export const TOUR_DURATION = 202
