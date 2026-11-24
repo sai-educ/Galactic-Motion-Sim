@@ -18,6 +18,8 @@ const paths = {
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   arrow: '<path d="M5 12h13m-5-5 5 5-5 5"/>',
   pulse: '<path d="M3 12h4l2.5-6 4 12 2.5-6h5"/>',
+  sound: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/>',
+  muted: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5Z"/><path d="m16 9.5 5 5m0-5-5 5"/>',
 } as const
 
 export function icon(name: keyof typeof paths) {

@@ -3,6 +3,7 @@ import { LY_PER_KPC } from './astro'
 import { createCallout, type Callout } from './callouts'
 import { icon, mountIcons } from './icons'
 import { galacticCoordinates, skyAsset, skyCatalog } from './sky-catalog'
+import { createSoundtrack } from './soundtrack'
 import { arms, RING_RADII_KPC } from './spiral-map'
 import { systems } from './systems'
 import { createTimeline, formatEpoch, formatLightYears, formatTime } from './timeline'
@@ -58,11 +59,18 @@ const elapsedEpoch = element('elapsed-epoch')
 const timeMarks = element<HTMLInputElement>('time-marks')
 const timeScrubber = element<HTMLInputElement>('time-scrubber')
 const fullscreen = element<HTMLButtonElement>('fullscreen')
+const musicToggle = element<HTMLButtonElement>('music')
 const aboutDialog = element<HTMLDialogElement>('about-dialog')
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 const narrowLayout = matchMedia('(max-width: 800px)')
 // Below this width the scene is too narrow to share with the data card, so the card joins the sidebar.
 const compactStage = matchMedia('(max-width: 1180px)')
+const MUSIC_PREFERENCE = 'galactic-motion:music'
+const audioAsset = (name: string) => `${import.meta.env.BASE_URL}audio/${name}.mp3`
+const soundtrack = createSoundtrack({
+  themes: systems.map(system => audioAsset(system.id)),
+  zooms: [audioAsset('zoom-1'), audioAsset('zoom-2')],
+})
 
 let paused = reducedMotion.matches
 let touring = false
@@ -164,6 +172,7 @@ function setStatus(state: 'live' | 'paused' | 'unavailable', text: string) {
 
 function showView(index: number, north = false) {
   if (activeSky >= 0 && openPanel === 'sky') setPanel('systems')
+  if (simulator) soundtrack.select(index)
   simulator?.focus(index, true, north)
   updateView(index, north)
 }
@@ -228,6 +237,7 @@ function showSky(index: number) {
   setPanel('sky')
   active = -1
   activeSky = index
+  soundtrack.select(-1)
   simulator.focusSky(index)
   stage.classList.remove('is-focused')
   stage.classList.add('is-sky')
@@ -360,6 +370,29 @@ function toggleLabels() {
   bodyKey.hidden = active < 0 || !showLabels
 }
 
+function readMusicPreference() {
+  try {
+    return localStorage.getItem(MUSIC_PREFERENCE) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+function setMusic(on: boolean, remember = true) {
+  soundtrack.setMuted(!on)
+  musicToggle.setAttribute('aria-pressed', String(on))
+  musicToggle.innerHTML = icon(on ? 'sound' : 'muted')
+  const label = on ? 'Turn music off (M)' : 'Turn music on (M)'
+  musicToggle.title = label
+  musicToggle.setAttribute('aria-label', label)
+  if (!remember) return
+  try {
+    localStorage.setItem(MUSIC_PREFERENCE, on ? 'on' : 'off')
+  } catch (error) {
+    console.info('Unable to remember the music setting.', error)
+  }
+}
+
 function showNorth() {
   if (!simulator) return
   stopTour()
@@ -373,6 +406,7 @@ function reset() {
   applyRate()
   applyTrail()
   setPaused(reducedMotion.matches)
+  soundtrack.select(-1)
   simulator?.reset()
   if (activeSky >= 0) setPanel('systems')
   updateView(-1)
@@ -383,6 +417,7 @@ function reset() {
 function unavailable(message: string) {
   simulator = undefined
   stopTour()
+  soundtrack.select(-1)
   stage.classList.remove('is-live')
   stage.classList.add('is-fallback')
   element('timeline').hidden = true
@@ -432,6 +467,11 @@ timeMarks.addEventListener('change', () => simulator?.setTimeMarks(timeMarks.che
 northView.addEventListener('click', showNorth)
 freeMode.addEventListener('click', stopTour)
 tourMode.addEventListener('click', startTour)
+musicToggle.addEventListener('click', () => setMusic(soundtrack.muted))
+// Browsers allow sound only after a gesture, so the first click, tap or key press unlocks the audio.
+for (const type of ['click', 'touchend', 'keydown']) {
+  document.addEventListener(type, () => soundtrack.unlock(), { capture: true, passive: true })
+}
 element('about').addEventListener('click', () => aboutDialog.showModal())
 aboutDialog.addEventListener('click', (event) => {
   if (event.target === aboutDialog) aboutDialog.close()
@@ -459,6 +499,7 @@ const shortcuts: Record<string, () => void> = {
   g: () => selectManually(-1),
   n: showNorth,
   l: toggleLabels,
+  m: () => setMusic(soundtrack.muted),
   t: () => (touring ? stopTour() : startTour()),
   ...Object.fromEntries(systems.map((_, index) => [String(index + 1), () => selectManually(index)])),
 }
@@ -485,6 +526,7 @@ applyTrail()
 setRange(bloomControl, 'bloom-value', '%')
 setRange(dustControl, 'dust-value', '%')
 setPaused(paused)
+setMusic(readMusicPreference(), false)
 placeDataCard()
 viewDescription.textContent = OVERVIEW_DESCRIPTION
 
@@ -512,6 +554,7 @@ async function initialize() {
       onContextLost() {
         unavailable('The 3D renderer lost its connection. Reload to restart the simulation.')
       },
+      onArrive: index => soundtrack.arrive(index),
     })
     simulator.setRate(rate.valueAsNumber)
     updateView(-1)
