@@ -72,6 +72,8 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 ## Controls and navigation
 
 - **Systems** lists the four systems. Select a card, a projected marker, or press **1**–**4** to track one. Drag to orbit the camera and scroll or pinch to zoom. Zooming in closes on the star itself, and planets grow into shaded globes.
+- **Cinematic camera.** While a system is tracked and the camera is left alone, it eases slowly through a sequence of shots: from above, along the disk, from below, close in and wide. Dragging or zooming takes over at once, and the shots resume after about nine seconds. Moving between two systems pulls the camera back and swoops in again. With reduced motion enabled, the camera stays still.
+- **Music** or **M** turns the soundtrack on or off, and the choice is remembered. Flying in from the Galaxy to a system plays one of two swells, never the same one twice in a row, then eases into that system’s theme, which loops without a gap. Choosing another system keeps the current theme playing during the flight, then crossfades to the new one without a swell. Leaving the systems fades the music out.
 - The **data card** beside a tracked system lists a few facts and four live figures: distance from the Galactic Center, height above the disk, speed around the Galaxy, and distance from the Sun.
 - **Galaxy overview** or **G** returns to the oblique view. **North view** or **N** looks down onto the disk from galactic north, where clockwise rotation is apparent.
 - **Labels** or **L** toggles projected names for systems, bodies, the galactic map, and deep-sky objects. Separate arm and deep-sky label switches appear in **Settings**. Labels move aside or disappear when they would overlap each other or the interface panels.
@@ -122,7 +124,9 @@ The FPS counter in the upper right reports measured animation frames per second,
 | Fontsource, DM Sans and Space Grotesk | Self-hosted Latin-subset variable fonts for the interface |
 | WebP | Local, compressed sky photographs, telescope portraits, and the static preview |
 | OpenAI ImageGen | Created the illustrated fallback image during development. The atlas uses the credited observations below. |
-| Vitest | Unit tests for the orbit integration, coordinate frames, orbital elements, and timing |
+| Suno | Generated the four system themes and the two zoom swells in [`public/audio/`](public/audio/) |
+| Web Audio API | Eased fades, gapless theme loops, and crossfades, through a pool of media elements unlocked by the first click or key press |
+| Vitest | Unit tests for the orbit integration, coordinate frames, orbital elements, timing, music cues, and camera shots |
 | Node.js and npm | Local development, package management, and production builds |
 | Vercel | Static hosting for the compiled Vite output |
 
@@ -270,6 +274,8 @@ Telescope portraits are center-cropped, resized, and drawn as edge-blended billb
 | [`src/clock.ts`](src/clock.ts), [`src/timeline.ts`](src/timeline.ts), [`src/trail-axis.ts`](src/trail-axis.ts) | Simulation time, seek UI, and the dashed timestamp guide |
 | [`src/callouts.ts`](src/callouts.ts), [`src/icons.ts`](src/icons.ts), [`src/style.css`](src/style.css) | Projected label layout, interface icons, and responsive styling |
 | [`src/view-settings.ts`](src/view-settings.ts) | Display settings and their defaults |
+| [`src/soundtrack.ts`](src/soundtrack.ts), [`src/soundtrack-plan.ts`](src/soundtrack-plan.ts), [`public/audio/`](public/audio/) | The music player, the rules for when each sound plays, and the MP3 themes and swells |
+| [`src/cinematic.ts`](src/cinematic.ts) | The shot sequence and easing for the idle cinematic camera |
 | [`public/sky/`](public/sky/) and [`public/galaxy.webp`](public/galaxy.webp) | Local derived WebP sky assets and the illustrated fallback view |
 | [`tests/`](tests/) | Unit tests: frame rotations, orbit integration against the measured velocities, binary positions against observation, Kepler’s laws, and formatting |
 | [`package.json`](package.json), [`package-lock.json`](package-lock.json), [`tsconfig.json`](tsconfig.json), [`vite.config.ts`](vite.config.ts) | Toolchain, locked dependency versions, type checking, and bundler configuration |

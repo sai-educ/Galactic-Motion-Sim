@@ -1,5 +1,5 @@
 import {
-  ACESFilmicToneMapping, Color, Group, PerspectiveCamera, Scene, Vector2, Vector3, WebGLRenderer, WebGLRenderTarget,
+  ACESFilmicToneMapping, Color, Group, PerspectiveCamera, Scene, Spherical, Vector2, Vector3, WebGLRenderer, WebGLRenderTarget,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -9,6 +9,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { LY_PER_UNIT, SOLAR_AZIMUTH, UNITS_PER_KPC } from './astro'
 import { createCalloutLayout, type Callout, type Rect } from './callouts'
+import { approach, IDLE_SECONDS, SETTLE_RATE, shotAt, smootherstep } from './cinematic'
 import { SimulationClock } from './clock'
 import { createDeepSky } from './deep-sky'
 import { toKms } from './galactic-orbit'
@@ -51,10 +52,15 @@ interface SimulatorOptions {
   onTakeover: () => void
   onContextLost: () => void
   onFirstRender: () => void
+  /** The camera has finished flying to a system, or the viewer took over before it arrived. */
+  onArrive: (index: number) => void
 }
 
 interface Transition {
   elapsed: number
+  duration: number
+  /** How far the camera pulls back mid-flight, as a share of its distance. */
+  pullback: number
   fromPosition: Vector3
   fromTarget: Vector3
   toPosition: Vector3
@@ -66,7 +72,12 @@ const OVERVIEW_TARGET = new Vector3(0, -25, 0)
 const NORTH_POSITION = new Vector3(0, 725, 0.01)
 const MODEL_FOV = 46
 const MIN_DISTANCE = 12
-const TRANSITION_SECONDS = 1.55
+// Camera flights: into a system from outside, between two systems, back out to the Galaxy, and to the sky atlas.
+const ENTER_SECONDS = 3
+const SWITCH_SECONDS = 3.8
+const LEAVE_SECONDS = 2.4
+const SKY_SECONDS = 1.55
+const SWITCH_PULLBACK = 0.6
 // A close-up looks at a point this far behind the system so that its trail fills the frame.
 const TRAIL_LEAD = 6.8
 const TELEMETRY_INTERVAL = 0.2
@@ -132,6 +143,15 @@ export function createSimulator(options: SimulatorOptions) {
   let heading = 0
   let obstacles: Rect[] = []
   let transition: Transition | undefined
+  // The idle camera that moves between shots around a tracked system.
+  const orbit = new Vector3()
+  const spherical = new Spherical()
+  let arriving = -1
+  let interacting = false
+  let idle = Infinity
+  let shotTime = 0
+  let shotBlend = 0
+  let baseDistance = 0
   let active = -1
   let skyTarget = -1
   let view = defaultViewSettings
@@ -222,10 +242,10 @@ export function createSimulator(options: SimulatorOptions) {
     if (index >= 0) sampleSystem(systems[index], clock.time, previousCenter)
   }
 
-  function moveCamera(destination: { position: Vector3, target: Vector3 }, animate: boolean) {
+  function moveCamera(destination: { position: Vector3, target: Vector3 }, animate: boolean, duration: number, pullback = 0) {
     if (animate && !reducedMotion.matches) {
       transition = {
-        elapsed: 0,
+        elapsed: 0, duration, pullback,
         fromPosition: camera.position.clone(), fromTarget: controls.target.clone(),
         toPosition: destination.position, toTarget: destination.target,
       }
@@ -240,16 +260,50 @@ export function createSimulator(options: SimulatorOptions) {
   }
 
   function focus(index: number, animate = true, north = false) {
+    const switching = index >= 0 && active >= 0 && active !== index && skyTarget < 0
     select(index, -1)
-    moveCamera(framing(index, north), animate)
+    arriving = index
+    idle = Infinity
+    const duration = index < 0 ? LEAVE_SECONDS : switching ? SWITCH_SECONDS : ENTER_SECONDS
+    moveCamera(framing(index, north), animate, duration, switching ? SWITCH_PULLBACK : 0)
   }
 
   function focusSky(index: number) {
     select(-1, index)
+    arriving = -1
     const target = new Vector3()
     sampleSystem(systems[0], 0, target)
     const position = target.clone().addScaledVector(sky.directions[index], -0.16)
-    moveCamera({ position, target }, true)
+    moveCamera({ position, target }, true, SKY_SECONDS)
+  }
+
+  /** While the viewer leaves the camera alone, ease it slowly through the shots around the tracked system. */
+  function direct(delta: number) {
+    idle += delta
+    if (interacting || idle < IDLE_SECONDS || reducedMotion.matches || baseDistance <= 0) {
+      shotBlend = 0
+      return
+    }
+    shotTime += delta
+    shotBlend = approach(shotBlend, 1, 0.5, delta)
+    const shot = shotAt(shotTime)
+    const settle = SETTLE_RATE * shotBlend
+    spherical.setFromVector3(orbit.subVectors(camera.position, controls.target))
+    spherical.theta += shot.drift * shotBlend * delta
+    spherical.phi = approach(spherical.phi, shot.polar, settle, delta)
+    spherical.radius = approach(spherical.radius, baseDistance * shot.distance, settle, delta)
+    spherical.makeSafe()
+    camera.position.copy(controls.target).add(orbit.setFromSpherical(spherical))
+  }
+
+  function arrive() {
+    if (transition || arriving < 0) return
+    const index = arriving
+    arriving = -1
+    shotTime = 0
+    shotBlend = 0
+    baseDistance = camera.position.distanceTo(controls.target)
+    options.onArrive(index)
   }
 
   function setSkyZoom(value: number) {
@@ -277,6 +331,7 @@ export function createSimulator(options: SimulatorOptions) {
         transition.toTarget.add(displacement).sub(center).applyAxisAngle(UP, turn).add(center)
       } else {
         camera.position.sub(controls.target).applyAxisAngle(UP, turn).add(controls.target)
+        direct(delta)
         // The pivot closes in on the system as the camera does, so zooming ends at the star itself.
         const reach = lead.ratio * camera.position.distanceTo(controls.target)
         displacement.copy(center).addScaledVector(lead.direction, reach).sub(controls.target)
@@ -287,12 +342,18 @@ export function createSimulator(options: SimulatorOptions) {
 
     if (transition) {
       transition.elapsed += delta
-      const t = Math.min(transition.elapsed / TRANSITION_SECONDS, 1)
-      const ease = t * t * (3 - 2 * t)
+      const t = Math.min(transition.elapsed / transition.duration, 1)
+      const ease = smootherstep(t)
       camera.position.lerpVectors(transition.fromPosition, transition.toPosition, ease)
       controls.target.lerpVectors(transition.fromTarget, transition.toTarget, ease)
+      if (transition.pullback > 0) {
+        // Between systems the camera pulls back and swoops in again, rather than sliding sideways.
+        const lift = 1 + transition.pullback * Math.sin(Math.PI * ease)
+        camera.position.sub(controls.target).multiplyScalar(lift).add(controls.target)
+      }
       if (t >= 1) transition = undefined
     }
+    arrive()
     if (Math.abs(fieldOfView - camera.fov) > 0.015) {
       camera.fov += (fieldOfView - camera.fov) * (1 - Math.exp(-delta * 6.6))
       camera.updateProjectionMatrix()
@@ -472,6 +533,8 @@ export function createSimulator(options: SimulatorOptions) {
   }
 
   controls.addEventListener('start', () => {
+    interacting = true
+    idle = 0
     if (skyTarget < 0 && transition) {
       transition = undefined
       // Keep the camera where it was grabbed mid-flight by adopting its current pivot.
@@ -482,6 +545,10 @@ export function createSimulator(options: SimulatorOptions) {
       }
     }
     options.onTakeover()
+  })
+  controls.addEventListener('end', () => {
+    interacting = false
+    idle = 0
   })
   canvas.addEventListener('wheel', event => {
     if (skyTarget < 0) return
