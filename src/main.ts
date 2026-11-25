@@ -339,13 +339,14 @@ function showNorth() {
   showView(-1, true)
 }
 
+/**
+ * Rewinds the clock and returns to the overview, and the simulation keeps running.
+ * The time scale and trail length stay as the viewer set them: dropping a fast run back to
+ * the slowest scale made the scene look frozen. With reduced motion, a paused scene stays paused.
+ */
 function reset() {
   stopTour()
-  rate.value = rate.defaultValue
-  trail.value = trail.defaultValue
-  applyRate()
-  applyTrail()
-  setPaused(reducedMotion.matches)
+  setPaused(paused && reducedMotion.matches)
   soundtrack.select(-1)
   simulator?.reset()
   updateView(-1)
@@ -440,13 +441,23 @@ const shortcuts: Record<string, () => void> = {
     system.neighbor ? [] : [[String(index + 1), () => selectManually(index)]])),
 }
 
+// Whether focus last moved with the keyboard rather than a click or tap. Browsers mark any focused control
+// :focus-visible once a key is pressed, so that selector cannot tell the two apart by the time Space arrives.
+let keyboardFocus = false
+document.addEventListener('pointerdown', () => { keyboardFocus = false }, { capture: true, passive: true })
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Tab') keyboardFocus = true
+}, { capture: true })
+
 document.addEventListener('keydown', (event) => {
   if (aboutDialog.open || !simulator || event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return
   const target = event.target instanceof HTMLElement ? event.target : undefined
-  // Typing into a field or picking from a menu keeps every key. Space also keeps its meaning on any control.
+  // Typing into a field or picking from a menu keeps every key.
   if (target?.closest('textarea, select, [contenteditable], input:not([type="range"], [type="checkbox"])')) return
   if (event.code === 'Space') {
-    if (target?.closest('button, a, input, summary')) return
+    // A control reached with the keyboard keeps Space. A clicked control keeps focus as well, and there
+    // Space plays and pauses: otherwise it would press that control again, and Reset would rewind once more.
+    if (keyboardFocus && target?.closest('button, a, input, summary')) return
     event.preventDefault()
     setPaused(!paused)
     return

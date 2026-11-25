@@ -77,7 +77,7 @@ Open [http://localhost:5173](http://localhost:5173), or follow the address Vite 
 - **Labels** or **L** toggles projected names for systems, bodies, the galactic map, and the two neighboring galaxies. Separate arm and neighbor-galaxy label switches appear in **Settings**. Labels move aside or disappear when they would overlap each other or the interface panels.
 - **Guided tour** or **T** starts at the Galaxy overview, then flies into each featured system in turn with its swell and theme, and last into Arcturus, stays about 30 seconds while the cinematic camera moves around it, and zooms back out to the Galaxy, with its music fading, before the next. Each stop has a short narration, and the tour loops every 202 seconds. Interacting with the scene or choosing a system manually returns the camera to free roam.
 - **Pause simulation** or **Space** eases the simulation clock to a stop and fades the music out, while leaving the camera available. Resuming eases the clock back up to speed and fades the music back in. Keyboard shortcuts yield to text fields, menus, and the About dialog. If reduced motion is enabled at startup, playback starts paused and camera transitions snap to their destinations.
-- **Reset simulation** restores the clock, time scale, trail length, and overview framing. Display settings are independent of the simulation reset.
+- **Reset simulation** rewinds the clock to today and returns to the overview framing, and the simulation keeps running. The time scale, trail length, and display settings stay as you set them. After clicking a control, **Space** still pauses and resumes; a control reached with the keyboard keeps its own Space action.
 
 ### Simulation controls
 
